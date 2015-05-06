@@ -9,14 +9,23 @@ import (
 )
 
 const (
-	WIPLabel          string = "WIP"
-	CakedLabel        string = "Caked"
-	AwaitingCakeLabel string = "Awaiting Cake"
+	WIPLabel          string = "wip"
+	CakedLabel        string = "caked"
+	AwaitingCakeLabel string = "awaiting-cake"
 )
 
 var (
 	IssueUrlRegex = regexp.MustCompile("repos/([^/]+)/([^/]+)/issues")
 	WIPRegex      = regexp.MustCompile("(?i)wip")
+	LabelColors   = map[string]string{
+		// Blue
+		WIPLabel: "207de5",
+		// Green
+		CakedLabel: "009800",
+		// Orange
+		AwaitingCakeLabel: "eb6420",
+	}
+	deprecatedLabels = []string{"Awaiting Cake"}
 )
 
 type PullRequest struct {
@@ -135,4 +144,89 @@ func pullRequestIssues(connection *github.Client, org string) ([]PullRequest, er
 	}
 
 	return allIssues, nil
+}
+
+func ensureOrgReposHaveLabels(org string, client *github.Client) error {
+	opts := github.RepositoryListByOrgOptions{}
+
+	for {
+		repos, resp, err := client.Repositories.ListByOrg(org, &opts)
+
+		if err != nil {
+			return err
+		}
+
+		for _, r := range repos {
+			err := setupReviewFlagsInRepo(r, client)
+
+			if err != nil {
+				return err
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opts.ListOptions.Page = resp.NextPage
+	}
+
+	return nil
+
+}
+
+func setupReviewFlagsInRepo(repo github.Repository, client *github.Client) error {
+	opts := github.ListOptions{}
+	currentLabels, _, err := client.Issues.ListLabels(*repo.Owner.Login, *repo.Name, &opts)
+
+	if err != nil {
+		return err
+	}
+
+	for _, label := range deprecatedLabels {
+		for _, actualLabel := range currentLabels {
+			if strings.ToLower(*actualLabel.Name) == strings.ToLower(label) {
+				_, err = client.Issues.DeleteLabel(*repo.Owner.Login, *repo.Name, *actualLabel.Name)
+
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	for label, color := range LabelColors {
+		found := false
+		needsUpdating := false
+
+		for _, actualLabel := range currentLabels {
+			if *actualLabel.Name == label {
+				found = true
+
+				if *actualLabel.Color != color {
+					needsUpdating = true
+				}
+
+				break
+			}
+
+			if strings.ToLower(*actualLabel.Name) == strings.ToLower(label) {
+				found = true
+				needsUpdating = true
+				break
+			}
+		}
+
+		if !found {
+			_, _, err = client.Issues.CreateLabel(*repo.Owner.Login, *repo.Name, &github.Label{Name: &label, Color: &color})
+		} else if needsUpdating {
+			_, _, err = client.Issues.EditLabel(*repo.Owner.Login, *repo.Name, label, &github.Label{Name: &label, Color: &color})
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

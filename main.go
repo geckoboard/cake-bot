@@ -58,6 +58,12 @@ func main() {
 
 	client := github.NewClient(tc)
 
+	err := ensureOrgReposHaveLabels("geckoboard", client)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	issues, err := pullRequestIssues(client, "geckoboard")
 
 	if err != nil {
