@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/geckoboard/goutils/router"
 	github "github.com/google/go-github/github"
@@ -12,7 +13,9 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var GithubApiKey string
+var (
+	GithubApiKey string
+)
 
 type Config struct {
 	Port int
@@ -58,35 +61,49 @@ func main() {
 
 	client := github.NewClient(tc)
 
-	err := ensureOrgReposHaveLabels("geckoboard", client)
+	var wg sync.WaitGroup
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
 
-	issues, err := pullRequestIssues(client, "geckoboard")
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, p := range issues {
-		status := AwaitingCakeLabel
-		isCaked := p.IsCaked()
-		isWIP := p.IsWIP()
-
-		log.Printf("%s, caked: %#v", *p.issue.Title, isCaked)
-
-		if isWIP {
-			status = WIPLabel
-		} else if isCaked {
-			status = CakedLabel
-		}
-
-		err = p.SetReviewLabel(status)
+		log.Println("starting syncing issue labels")
+		err := ensureOrgReposHaveLabels("geckoboard", client)
+		log.Println("finished syncing issue labels")
 
 		if err != nil {
-			log.Fatal("error changing the review label for issue", err)
+			log.Println(err)
 		}
-	}
+	}()
+
+	go func() {
+		defer wg.Done()
+		issues, err := pullRequestIssues(client, "geckoboard")
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, p := range issues {
+			status := AwaitingCakeLabel
+			isCaked := p.IsCaked()
+			isWIP := p.IsWIP()
+
+			log.Printf("%s, caked: %#v", *p.issue.Title, isCaked)
+
+			if isWIP {
+				status = WIPLabel
+			} else if isCaked {
+				status = CakedLabel
+			}
+
+			err = p.SetReviewLabel(status)
+
+			if err != nil {
+				log.Fatal("error changing the review label for issue", err)
+			}
+		}
+	}()
+
+	wg.Wait()
 }
