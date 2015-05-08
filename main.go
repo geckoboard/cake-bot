@@ -89,6 +89,8 @@ func main() {
 
 			err := updateIssueReviewLabels(client, &pr)
 
+			log.Printf("%#v", pr.ExtractTrelloCardUrls())
+
 			if err != nil {
 				log.Fatal("error changing the review label for issue", err)
 			}

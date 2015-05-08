@@ -14,9 +14,11 @@ const (
 )
 
 var (
-	IssueUrlRegex = regexp.MustCompile("repos/([^/]+)/([^/]+)/issues")
-	WIPRegex      = regexp.MustCompile("(?i)wip")
-	LabelColors   = map[string]string{
+	IssueUrlRegex  = regexp.MustCompile("repos/([^/]+)/([^/]+)/issues")
+	TrelloUrlRegex = regexp.MustCompile("(https?://trello.com/(?:[^\\s()]+))")
+
+	WIPRegex    = regexp.MustCompile("(?i)wip")
+	LabelColors = map[string]string{
 		// Blue
 		WIPLabel: "207de5",
 		// Green
@@ -100,7 +102,16 @@ func (p *PullRequest) CalculateAppropriateStatus() string {
 	default:
 		return AwaitingCakeLabel
 	}
+}
 
+func (p *PullRequest) ExtractTrelloCardUrls() []string {
+	urls := TrelloUrlRegex.FindAllString(*p.issue.Body, -1)
+
+	for _, c := range *p.comments {
+		urls = append(urls, TrelloUrlRegex.FindAllString(*c.Body, -1)...)
+	}
+
+	return urls
 }
 
 func PullRequestFromIssue(i github.Issue, c *github.Client) PullRequest {
