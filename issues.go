@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"regexp"
 	"strings"
 
@@ -28,44 +27,16 @@ var (
 	deprecatedLabels = []string{"Awaiting Cake"}
 )
 
-type PullRequest struct {
-	issue    github.Issue
-	client   *github.Client
-	comments *[]github.IssueComment
-	owner    string
-	repo     string
-}
-
-func (p *PullRequest) IsWIP() bool {
-	return WIPRegex.MatchString(*p.issue.Title)
-}
-
-func (p *PullRequest) IsCaked() bool {
-	comments, err := p.FetchComments()
-
-	if err != nil {
-		return false
-	}
-
-	for _, c := range comments {
-		if strings.Contains(*c.Body, ":cake:") {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (p *PullRequest) FetchComments() ([]github.IssueComment, error) {
+func loadComments(client *github.Client, pr *PullRequest) error {
 	var allComments []github.IssueComment
 
 	opts := github.IssueListCommentsOptions{}
 
 	for {
-		comments, resp, err := p.client.Issues.ListComments(p.owner, p.repo, *p.issue.Number, &opts)
+		comments, resp, err := client.Issues.ListComments(pr.owner, pr.repo, *pr.issue.Number, &opts)
 
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		allComments = append(allComments, comments...)
@@ -77,13 +48,15 @@ func (p *PullRequest) FetchComments() ([]github.IssueComment, error) {
 		opts.ListOptions.Page = resp.NextPage
 	}
 
-	return allComments, nil
+	pr.comments = &allComments
+
+	return nil
 }
 
-func (p *PullRequest) SetReviewLabel(l string) error {
-	newLabels := []string{l}
+func updateIssueReviewLabels(client *github.Client, pr *PullRequest) error {
+	newLabels := []string{pr.CalculateAppropriateStatus()}
 
-	for _, l := range p.issue.Labels {
+	for _, l := range pr.issue.Labels {
 		switch *l.Name {
 		case WIPLabel, CakedLabel, AwaitingCakeLabel:
 			continue
@@ -92,11 +65,42 @@ func (p *PullRequest) SetReviewLabel(l string) error {
 		}
 	}
 
-	log.Printf("Setting labels to %#v\n", newLabels)
-
-	_, _, err := p.client.Issues.ReplaceLabelsForIssue(p.owner, p.repo, *p.issue.Number, newLabels)
+	_, _, err := client.Issues.ReplaceLabelsForIssue(pr.owner, pr.repo, *pr.issue.Number, newLabels)
 
 	return err
+}
+
+type PullRequest struct {
+	issue    github.Issue
+	comments *[]github.IssueComment
+	owner    string
+	repo     string
+}
+
+func (p *PullRequest) IsWIP() bool {
+	return WIPRegex.MatchString(*p.issue.Title)
+}
+
+func (p *PullRequest) IsCaked() bool {
+	for _, c := range *p.comments {
+		if strings.Contains(*c.Body, ":cake:") {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (p *PullRequest) CalculateAppropriateStatus() string {
+	switch {
+	case p.IsWIP():
+		return WIPLabel
+	case p.IsCaked():
+		return CakedLabel
+	default:
+		return AwaitingCakeLabel
+	}
+
 }
 
 func PullRequestFromIssue(i github.Issue, c *github.Client) PullRequest {
@@ -104,12 +108,15 @@ func PullRequestFromIssue(i github.Issue, c *github.Client) PullRequest {
 	org := components[1]
 	repo := components[2]
 
-	return PullRequest{
-		issue:  i,
-		client: c,
-		owner:  org,
-		repo:   repo,
+	pr := PullRequest{
+		issue: i,
+		owner: org,
+		repo:  repo,
 	}
+
+	loadComments(c, &pr)
+
+	return pr
 }
 
 func pullRequestIssues(connection *github.Client, org string) ([]PullRequest, error) {

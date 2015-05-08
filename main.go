@@ -84,20 +84,10 @@ func main() {
 			log.Fatal(err)
 		}
 
-		for _, p := range issues {
-			status := AwaitingCakeLabel
-			isCaked := p.IsCaked()
-			isWIP := p.IsWIP()
+		for _, pr := range issues {
+			log.Printf("%s, status: %#v", *pr.issue.Title, pr.CalculateAppropriateStatus())
 
-			log.Printf("%s, caked: %#v", *p.issue.Title, isCaked)
-
-			if isWIP {
-				status = WIPLabel
-			} else if isCaked {
-				status = CakedLabel
-			}
-
-			err = p.SetReviewLabel(status)
+			err := updateIssueReviewLabels(client, &pr)
 
 			if err != nil {
 				log.Fatal("error changing the review label for issue", err)
