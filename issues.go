@@ -1,8 +1,10 @@
 package main
 
 import (
+	"log"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/google/go-github/github"
 )
@@ -167,6 +169,8 @@ func pullRequestIssues(connection *github.Client, org string) ([]PullRequest, er
 func ensureOrgReposHaveLabels(org string, client *github.Client) error {
 	opts := github.RepositoryListByOrgOptions{}
 
+	var wg sync.WaitGroup
+
 	for {
 		repos, resp, err := client.Repositories.ListByOrg(org, &opts)
 
@@ -175,11 +179,16 @@ func ensureOrgReposHaveLabels(org string, client *github.Client) error {
 		}
 
 		for _, r := range repos {
-			err := setupReviewFlagsInRepo(r, client)
+			wg.Add(1)
 
-			if err != nil {
-				return err
-			}
+			go func() {
+				defer wg.Done()
+				err := setupReviewFlagsInRepo(r, client)
+
+				if err != nil {
+					log.Println(err)
+				}
+			}()
 		}
 
 		if resp.NextPage == 0 {
@@ -189,6 +198,7 @@ func ensureOrgReposHaveLabels(org string, client *github.Client) error {
 		opts.ListOptions.Page = resp.NextPage
 	}
 
+	wg.Wait()
 	return nil
 
 }
