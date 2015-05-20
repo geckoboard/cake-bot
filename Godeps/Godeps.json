@@ -1,0 +1,39 @@
+{
+	"ImportPath": "github.com/geckoboard/prbot",
+	"GoVersion": "go1.4.1",
+	"Deps": [
+		{
+			"ImportPath": "github.com/geckoboard/goutils/router",
+			"Rev": "c0fb2505de0275ec086830e538a016e61da2b70c"
+		},
+		{
+			"ImportPath": "github.com/google/go-github/github",
+			"Rev": "6f7d3a5ad94d7a8c1cf7cb93d1364d0369ea8bbd"
+		},
+		{
+			"ImportPath": "github.com/google/go-querystring/query",
+			"Rev": "547ef5ac979778feb2f760cdb5f4eae1a2207b86"
+		},
+		{
+			"ImportPath": "github.com/julienschmidt/httprouter",
+			"Rev": "8c199fb6259ffc1af525cc3ad52ee60ba8359669"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-colorable",
+			"Rev": "d67e0b7d1797975196499f79bcc322c08b9f218b"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "72bfdce4720b8edba5098bb04136d3d6afa992b3"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "f98d0160877ab4712b906626425ed8b0b320907c"
+		},
+		{
+			"ImportPath": "gopkg.in/inconshreveable/log15.v2",
+			"Comment": "v2.10",
+			"Rev": "dc7890abeaadcb6a79a9a5ee30bc1897bbf97713"
+		}
+	]
+}
