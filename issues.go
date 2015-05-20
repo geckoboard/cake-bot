@@ -151,6 +151,7 @@ func PullRequestFromIssue(i github.Issue, c *github.Client) PullRequest {
 
 func pullRequestIssues(connection *github.Client, org string) ([]PullRequest, error) {
 	var allIssues []PullRequest
+	var numIssues int
 
 	opts := github.IssueListOptions{
 		Filter:    "all",
@@ -159,21 +160,31 @@ func pullRequestIssues(connection *github.Client, org string) ([]PullRequest, er
 	}
 
 	for {
+		log.Info("loading page of issues", "ops", opts, "org", org)
+
 		issues, resp, err := connection.Issues.ListByOrg(org, &opts)
 
+		numIssues += len(issues)
+
 		if err != nil {
+			log.Error("error while loading issues", "err", err)
+
 			return nil, err
 		}
 
 		for _, i := range issues {
 			if i.PullRequestLinks == nil {
-				break
+				log.Debug("excluding non-pr issue", "issue.number", *i.Number, "url", *i.HTMLURL)
+				continue
 			}
+
+			log.Debug("found pr issue", "issue.number", *i.Number, "url", *i.HTMLURL)
 
 			allIssues = append(allIssues, PullRequestFromIssue(i, connection))
 		}
 
 		if resp.NextPage == 0 {
+			log.Info("finished loading pull request issues", "issues.len", numIssues, "pr_issues.len", len(allIssues))
 			break
 		}
 

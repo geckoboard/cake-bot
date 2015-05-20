@@ -110,6 +110,7 @@ func runBulkSync(c Config) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
+		return
 
 		err := ensureOrgReposHaveLabels(c.GithubOrg, gh)
 
