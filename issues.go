@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"regexp"
 	"strings"
 	"sync"
@@ -116,6 +115,14 @@ func (p *PullRequest) ExtractTrelloCardUrls() []string {
 	return urls
 }
 
+func (p *PullRequest) Number() int {
+	return *p.issue.Number
+}
+
+func (p *PullRequest) URL() string {
+	return *p.issue.HTMLURL
+}
+
 func PullRequestFromIssue(i github.Issue, c *github.Client) PullRequest {
 	components := IssueUrlRegex.FindStringSubmatch(*i.URL)
 	org := components[1]
@@ -183,10 +190,11 @@ func ensureOrgReposHaveLabels(org string, client *github.Client) error {
 
 			go func() {
 				defer wg.Done()
+				log.Info("syncing labels for repo", "repo.name", *r.Name)
 				err := setupReviewFlagsInRepo(r, client)
 
 				if err != nil {
-					log.Println(err)
+					log.Error("error syncing repo review labels", "err", err, "repo", r.Name)
 				}
 			}()
 		}
@@ -204,16 +212,20 @@ func ensureOrgReposHaveLabels(org string, client *github.Client) error {
 }
 
 func setupReviewFlagsInRepo(repo github.Repository, client *github.Client) error {
+	l := log.New("repo.name", repo.Name)
 	opts := github.ListOptions{}
 	currentLabels, _, err := client.Issues.ListLabels(*repo.Owner.Login, *repo.Name, &opts)
 
 	if err != nil {
+		l.Error("unable to fetch current labels", "err", err)
 		return err
 	}
 
 	for _, label := range deprecatedLabels {
 		for _, actualLabel := range currentLabels {
 			if strings.ToLower(*actualLabel.Name) == strings.ToLower(label) {
+				l.Info("deleting deprecated label", "repo.name", *repo.Name, "label", *actualLabel.Name)
+
 				_, err = client.Issues.DeleteLabel(*repo.Owner.Login, *repo.Name, *actualLabel.Name)
 
 				if err != nil {
@@ -246,8 +258,12 @@ func setupReviewFlagsInRepo(repo github.Repository, client *github.Client) error
 		}
 
 		if !found {
+			l.Info("creating label", "repo.Name", *repo.Name, "label.name", label, "label.color", color)
+
 			_, _, err = client.Issues.CreateLabel(*repo.Owner.Login, *repo.Name, &github.Label{Name: &label, Color: &color})
 		} else if needsUpdating {
+			l.Info("updating label", "repo.Name", *repo.Name, "label.name", label, "label.color", color)
+
 			_, _, err = client.Issues.EditLabel(*repo.Owner.Login, *repo.Name, label, &github.Label{Name: &label, Color: &color})
 		}
 
