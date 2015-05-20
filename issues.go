@@ -52,12 +52,12 @@ func loadComments(client *github.Client, pr *PullRequest) error {
 		opts.ListOptions.Page = resp.NextPage
 	}
 
-	pr.comments = &allComments
+	pr.comments = allComments
 
 	return nil
 }
 
-func updateIssueReviewLabels(client *github.Client, log log15.Logger, pr *PullRequest) error {
+func updateIssueReviewLabels(client *github.Client, log log15.Logger, pr PullRequest) error {
 	oldLabels := []string{}
 	newLabels := []string{pr.CalculateAppropriateStatus()}
 
@@ -74,7 +74,7 @@ func updateIssueReviewLabels(client *github.Client, log log15.Logger, pr *PullRe
 
 	log.Info("updating issue review label", "old_labels", oldLabels, "labels", newLabels)
 
-	_, _, err := client.Issues.ReplaceLabelsForIssue(pr.owner, pr.repo, *pr.issue.Number, newLabels)
+	_, _, err := client.Issues.ReplaceLabelsForIssue(pr.owner, pr.repo, pr.Number(), newLabels)
 
 	if err != nil {
 		log.Error("unable to update issue review label", "err", err)
@@ -85,7 +85,7 @@ func updateIssueReviewLabels(client *github.Client, log log15.Logger, pr *PullRe
 
 type PullRequest struct {
 	issue    github.Issue
-	comments *[]github.IssueComment
+	comments []github.IssueComment
 	owner    string
 	repo     string
 }
@@ -95,7 +95,7 @@ func (p *PullRequest) IsWIP() bool {
 }
 
 func (p *PullRequest) IsCaked() bool {
-	for _, c := range *p.comments {
+	for _, c := range p.comments {
 		if strings.Contains(*c.Body, ":cake:") {
 			return true
 		}
@@ -118,7 +118,7 @@ func (p *PullRequest) CalculateAppropriateStatus() string {
 func (p *PullRequest) ExtractTrelloCardUrls() []string {
 	urls := TrelloUrlRegex.FindAllString(*p.issue.Body, -1)
 
-	for _, c := range *p.comments {
+	for _, c := range p.comments {
 		urls = append(urls, TrelloUrlRegex.FindAllString(*c.Body, -1)...)
 	}
 
@@ -133,13 +133,13 @@ func (p *PullRequest) URL() string {
 	return *p.issue.HTMLURL
 }
 
-func PullRequestFromIssue(i *github.Issue, c *github.Client) PullRequest {
+func PullRequestFromIssue(i github.Issue, c *github.Client) PullRequest {
 	components := IssueUrlRegex.FindStringSubmatch(*i.URL)
 	org := components[1]
 	repo := components[2]
 
 	pr := PullRequest{
-		issue: *i,
+		issue: i,
 		owner: org,
 		repo:  repo,
 	}
@@ -170,7 +170,7 @@ func pullRequestIssues(connection *github.Client, org string) ([]PullRequest, er
 				break
 			}
 
-			allIssues = append(allIssues, PullRequestFromIssue(&i, connection))
+			allIssues = append(allIssues, PullRequestFromIssue(i, connection))
 		}
 
 		if resp.NextPage == 0 {

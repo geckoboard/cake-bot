@@ -91,11 +91,11 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 			l.Error("error fetching issue", "err", err)
 		}
 
-		pr := PullRequestFromIssue(issue, gh)
+		pr := PullRequestFromIssue(*issue, gh)
 
 		l = l.New("issue.url", pr.URL())
 
-		err = updateIssueReviewLabels(gh, l, &pr)
+		err = updateIssueReviewLabels(gh, l, pr)
 
 		if err != nil {
 			w.WriteHeader(501)
@@ -130,7 +130,7 @@ func runBulkSync(c Config) {
 		for _, pr := range issues {
 			l := log.New("issue.number", pr.Number(), "issue.url", pr.URL())
 
-			go updateIssueReviewLabels(gh, l, &pr)
+			go updateIssueReviewLabels(gh, l, pr)
 		}
 	}()
 
