@@ -58,9 +58,12 @@ func loadComments(client *github.Client, pr *PullRequest) error {
 }
 
 func updateIssueReviewLabels(client *github.Client, log log15.Logger, pr *PullRequest) error {
+	oldLabels := []string{}
 	newLabels := []string{pr.CalculateAppropriateStatus()}
 
 	for _, l := range pr.issue.Labels {
+		oldLabels = append(oldLabels, *l.Name)
+
 		switch *l.Name {
 		case WIPLabel, CakedLabel, AwaitingCakeLabel:
 			continue
@@ -69,7 +72,7 @@ func updateIssueReviewLabels(client *github.Client, log log15.Logger, pr *PullRe
 		}
 	}
 
-	log.Info("updating issue review label", "new_label", newLabels[0])
+	log.Info("updating issue review label", "old_labels", oldLabels, "labels", newLabels)
 
 	_, _, err := client.Issues.ReplaceLabelsForIssue(pr.owner, pr.repo, *pr.issue.Number, newLabels)
 
