@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 var (
 	GithubApiKey string
 	log          log15.Logger
+	gh           *github.Client
 )
 
 type Config struct {
@@ -51,21 +53,65 @@ func NewServer() http.Handler {
 	return r
 }
 
-func ping(_ http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
-
+func ping(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+	fmt.Println(w, "ok")
 }
-func githubWebhook(_ http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var payload struct {
+		Issue struct {
+			Number int
+		}
+		Repository struct {
+			Name  string
+			Owner struct {
+				Login string
+			}
+		}
+	}
 
+	l := log.New("endpoint", "webhook")
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		l.Error("could not unmarshal json", "err", err)
+		w.WriteHeader(501)
+		return
+	}
+
+	if payload.Issue.Number != 0 {
+		number := payload.Issue.Number
+		owner := payload.Repository.Owner.Login
+		repo := payload.Repository.Name
+
+		l = l.New("repo.name", repo, "repo.owner", owner, "issue.number", number)
+		l.Info("fetching issue")
+
+		issue, _, err := gh.Issues.Get(owner, repo, number)
+
+		if err != nil {
+			l.Error("error fetching issue", "err", err)
+		}
+
+		pr := PullRequestFromIssue(issue, gh)
+
+		l = l.New("issue.url", pr.URL())
+
+		err = updateIssueReviewLabels(gh, l, &pr)
+
+		if err != nil {
+			w.WriteHeader(501)
+			return
+		}
+	}
 }
 
-func runBulkSync(client *github.Client, c Config) {
+func runBulkSync(c Config) {
 	var wg sync.WaitGroup
 
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
 
-		err := ensureOrgReposHaveLabels(c.GithubOrg, client)
+		err := ensureOrgReposHaveLabels(c.GithubOrg, gh)
 
 		if err != nil {
 			log.Error("encountered error while ensuring all repos have lables", "err", err)
@@ -74,7 +120,7 @@ func runBulkSync(client *github.Client, c Config) {
 
 	go func() {
 		defer wg.Done()
-		issues, err := pullRequestIssues(client, c.GithubOrg)
+		issues, err := pullRequestIssues(gh, c.GithubOrg)
 
 		if err != nil {
 			log.Error("could not load issues from github org", "err", err)
@@ -82,11 +128,9 @@ func runBulkSync(client *github.Client, c Config) {
 		}
 
 		for _, pr := range issues {
-			err := updateIssueReviewLabels(client, &pr)
+			l := log.New("issue.number", pr.Number(), "issue.url", pr.URL())
 
-			if err != nil {
-				log.Error("cannot change review label for issue", "err", err, "issue.number", pr.Number(), "issue.html_url", pr.URL())
-			}
+			go updateIssueReviewLabels(gh, l, &pr)
 		}
 	}()
 
@@ -95,6 +139,9 @@ func runBulkSync(client *github.Client, c Config) {
 
 func main() {
 	log = log15.New()
+	log.SetHandler(log15.MultiHandler(
+		log15.StreamHandler(os.Stdout, log15.LogfmtFormat()),
+	))
 
 	var c Config
 
@@ -115,9 +162,9 @@ func main() {
 
 	tc := oauth2.NewClient(oauth2.NoContext, ts)
 
-	client := github.NewClient(tc)
+	gh = github.NewClient(tc)
 
-	runBulkSync(client, c)
+	runBulkSync(c)
 
 	if c.Port > 0 {
 		httpServer := http.Server{

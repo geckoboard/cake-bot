@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/google/go-github/github"
+	log15 "gopkg.in/inconshreveable/log15.v2"
 )
 
 const (
@@ -56,7 +57,7 @@ func loadComments(client *github.Client, pr *PullRequest) error {
 	return nil
 }
 
-func updateIssueReviewLabels(client *github.Client, pr *PullRequest) error {
+func updateIssueReviewLabels(client *github.Client, log log15.Logger, pr *PullRequest) error {
 	newLabels := []string{pr.CalculateAppropriateStatus()}
 
 	for _, l := range pr.issue.Labels {
@@ -68,7 +69,13 @@ func updateIssueReviewLabels(client *github.Client, pr *PullRequest) error {
 		}
 	}
 
+	log.Info("updating issue review label", "new_label", newLabels[0])
+
 	_, _, err := client.Issues.ReplaceLabelsForIssue(pr.owner, pr.repo, *pr.issue.Number, newLabels)
+
+	if err != nil {
+		log.Error("unable to update issue review label", "err", err)
+	}
 
 	return err
 }
@@ -123,13 +130,13 @@ func (p *PullRequest) URL() string {
 	return *p.issue.HTMLURL
 }
 
-func PullRequestFromIssue(i github.Issue, c *github.Client) PullRequest {
+func PullRequestFromIssue(i *github.Issue, c *github.Client) PullRequest {
 	components := IssueUrlRegex.FindStringSubmatch(*i.URL)
 	org := components[1]
 	repo := components[2]
 
 	pr := PullRequest{
-		issue: i,
+		issue: *i,
 		owner: org,
 		repo:  repo,
 	}
@@ -160,7 +167,7 @@ func pullRequestIssues(connection *github.Client, org string) ([]PullRequest, er
 				break
 			}
 
-			allIssues = append(allIssues, PullRequestFromIssue(i, connection))
+			allIssues = append(allIssues, PullRequestFromIssue(&i, connection))
 		}
 
 		if resp.NextPage == 0 {
