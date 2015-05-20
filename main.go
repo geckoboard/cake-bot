@@ -133,10 +133,10 @@ func runBulkSync(c Config) {
 
 			wg.Add(1)
 
-			go func() {
+			go func(pr PullRequest, l log15.Logger) {
 				updateIssueReviewLabels(gh, l, pr)
 				wg.Done()
-			}()
+			}(pr, l)
 		}
 	}()
 
