@@ -130,7 +130,12 @@ func runBulkSync(c Config) {
 		for _, pr := range issues {
 			l := log.New("issue.number", pr.Number(), "issue.url", pr.URL())
 
-			go updateIssueReviewLabels(gh, l, pr)
+			wg.Add(1)
+
+			go func() {
+				updateIssueReviewLabels(gh, l, pr)
+				wg.Done()
+			}()
 		}
 	}()
 
