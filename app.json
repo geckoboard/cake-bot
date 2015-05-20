@@ -1,0 +1,16 @@
+{
+  "name": "PRBot",
+  "description": "A small bot for managing code review on Github",
+  "env": {
+    "BUILDPACK_URL": "https://github.com/heroku/heroku-buildpack-go",
+    "GITHUB_ACCESS_TOKEN": {
+      "description": "Access token for a github user that can access all repos in your GH organization",
+      "required": true
+    },
+    "GITHUB_ORGANIZATION": {
+      "description": "The organization within which to manage pull requests",
+      "required": true
+    }
+  }
+}
+
