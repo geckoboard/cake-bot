@@ -188,15 +188,17 @@ func ensureOrgReposHaveLabels(org string, client *github.Client) error {
 		for _, r := range repos {
 			wg.Add(1)
 
-			go func() {
+			go func(r github.Repository) {
 				defer wg.Done()
-				log.Info("syncing labels for repo", "repo.name", *r.Name)
+				log.Info("start syncing labels for repo", "repo.name", *r.Name)
 				err := setupReviewFlagsInRepo(r, client)
 
 				if err != nil {
 					log.Error("error syncing repo review labels", "err", err, "repo", r.Name)
 				}
-			}()
+
+				log.Info("done syncing labels for repo", "repo.name", *r.Name)
+			}(r)
 		}
 
 		if resp.NextPage == 0 {
