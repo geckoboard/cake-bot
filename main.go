@@ -79,6 +79,8 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		)
 	}
 
+	l.Debug("checking if webhook can be handled")
+
 	if *payload.Issue.Number != 0 && payload.Issue.PullRequestLinks != nil {
 		triggerInspection = true
 
