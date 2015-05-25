@@ -62,26 +62,48 @@ func updateIssueReviewLabels(client *github.Client, log log15.Logger, review Rev
 	oldLabels := []string{}
 	newLabels := []string{review.CalculateAppropriateStatus()}
 
+	foundReviewLabel, incorrectReviewLabel := false, false
+
 	for _, l := range review.issue.Labels {
 		oldLabels = append(oldLabels, *l.Name)
 
 		switch *l.Name {
 		case WIPLabel, CakedLabel, AwaitingCakeLabel:
+			foundReviewLabel = true
+
+			if *l.Name != newLabels[0] {
+				incorrectReviewLabel = true
+			}
+
 			continue
 		default:
 			newLabels = append(newLabels, *l.Name)
 		}
 	}
 
-	log.Info("updating issue review label", "old_labels", oldLabels, "labels", newLabels)
+	var labelsNeedUpdating bool
 
-	_, _, err := client.Issues.ReplaceLabelsForIssue(*review.repo.Owner.Login, *review.repo.Name, review.Number(), newLabels)
-
-	if err != nil {
-		log.Error("unable to update issue review label", "err", err)
+	switch {
+	case !foundReviewLabel:
+		labelsNeedUpdating = true
+		log.Info("could not find review label", "old_labels", oldLabels, "new_labels", newLabels)
+	case incorrectReviewLabel:
+		labelsNeedUpdating = true
+		log.Info("review label is incorrect", "old_labels", oldLabels, "new_labels", newLabels)
+	default:
+		log.Info("review label does not need updating", "labels", oldLabels)
 	}
 
-	return err
+	if labelsNeedUpdating {
+		_, _, err := client.Issues.ReplaceLabelsForIssue(*review.repo.Owner.Login, *review.repo.Name, review.Number(), newLabels)
+
+		if err != nil {
+			log.Error("unable to update issue review label", "err", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 type Issue struct {
@@ -179,7 +201,6 @@ func ghNextPageURL(r *github.Response) string {
 				continue
 			}
 
-			// try to pull out page parameter
 			url := segments[0][1 : len(segments[0])-1]
 
 			for _, segment := range segments[1:] {
