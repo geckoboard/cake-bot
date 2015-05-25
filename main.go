@@ -48,12 +48,16 @@ func ping(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 }
 func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var payload struct {
-		Issue      *github.Issue
-		Repository *github.Repository
+		Action      string
+		Issue       *github.Issue
+		Repository  *github.Repository
+		PullRequest *github.PullRequest
 	}
 	var err error
 
-	l := log.New("endpoint", "webhook")
+	var triggerInspection bool
+
+	l := log.New("endpoint", "webhook", "action", payload.Action)
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		l.Error("could not unmarshal json", "err", err)
@@ -61,14 +65,41 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		return
 	}
 
-	if *payload.Issue.Number != 0 && payload.Issue.PullRequestLinks != nil {
+	if payload.Repository != nil {
 		l = l.New(
 			"repo.name", *payload.Repository.Name,
 			"repo.owner", *payload.Repository.Owner.Login,
+		)
+	}
+
+	if payload.Issue != nil {
+		l = l.New(
 			"issue.number", *payload.Issue.Number,
 			"issue.url", *payload.Issue.HTMLURL,
 		)
-		l.Info("fetching issue")
+	}
+
+	if *payload.Issue.Number != 0 && payload.Issue.PullRequestLinks != nil {
+		triggerInspection = true
+
+		l.Info("found issue with pr links")
+	} else if payload.PullRequest != nil && payload.Action == "opened" {
+		triggerInspection = true
+
+		l.Info("found pr opened event, inferring issue")
+
+		payload.Issue, _, err = gh.Issues.Get(*payload.Repository.Owner.Login, *payload.Repository.Name, *payload.PullRequest.Number)
+
+		if err != nil {
+			l.Error("encountered error while loading issue", "err", err)
+			w.WriteHeader(501)
+			return
+		}
+	} else {
+		l.Info("webhook payload does not refer to pull request")
+	}
+
+	if triggerInspection {
 
 		pr := ReviewRequestFromIssue(*payload.Repository, *payload.Issue, gh)
 
@@ -79,6 +110,8 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 			return
 		}
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func runBulkSync(c Config) {
