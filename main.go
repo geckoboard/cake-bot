@@ -26,16 +26,6 @@ type Config struct {
 	GithubOrg string
 }
 
-func newWebhookServer() http.Handler {
-	r := router.New()
-	r.POST("/webhooks/github", ghHandler)
-	return r
-}
-
-func ghHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-
-}
-
 // tokenSource is an oauth2.TokenSource which returns a static access token
 type tokenSource struct {
 	token *oauth2.Token
@@ -58,16 +48,10 @@ func ping(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 }
 func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var payload struct {
-		Issue struct {
-			Number int
-		}
-		Repository struct {
-			Name  string
-			Owner struct {
-				Login string
-			}
-		}
+		Issue      *github.Issue
+		Repository *github.Repository
 	}
+	var err error
 
 	l := log.New("endpoint", "webhook")
 
@@ -77,23 +61,16 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		return
 	}
 
-	if payload.Issue.Number != 0 {
-		number := payload.Issue.Number
-		owner := payload.Repository.Owner.Login
-		repo := payload.Repository.Name
-
-		l = l.New("repo.name", repo, "repo.owner", owner, "issue.number", number)
+	if *payload.Issue.Number != 0 {
+		l = l.New(
+			"repo.name", *payload.Repository.Name,
+			"repo.owner", *payload.Repository.Owner.Login,
+			"issue.number", *payload.Issue.Number,
+			"issue.url", *payload.Issue.HTMLURL,
+		)
 		l.Info("fetching issue")
 
-		issue, _, err := gh.Issues.Get(owner, repo, number)
-
-		if err != nil {
-			l.Error("error fetching issue", "err", err)
-		}
-
-		pr := PullRequestFromIssue(*issue, gh)
-
-		l = l.New("issue.url", pr.URL())
+		pr := ReviewRequestFromIssue(*payload.Repository, *payload.Issue, gh)
 
 		err = updateIssueReviewLabels(gh, l, pr)
 
@@ -121,7 +98,7 @@ func runBulkSync(c Config) {
 
 	go func() {
 		defer wg.Done()
-		issues, err := pullRequestIssues(gh, c.GithubOrg)
+		issues, err := ReviewRequestsInOrg(gh, c.GithubOrg)
 
 		if err != nil {
 			log.Error("could not load issues from github org", "err", err)
@@ -133,7 +110,7 @@ func runBulkSync(c Config) {
 
 			wg.Add(1)
 
-			go func(pr PullRequest, l log15.Logger) {
+			go func(pr ReviewRequest, l log15.Logger) {
 				updateIssueReviewLabels(gh, l, pr)
 				wg.Done()
 			}(pr, l)

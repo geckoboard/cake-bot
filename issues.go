@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"sync"
@@ -31,13 +32,13 @@ var (
 	deprecatedLabels = []string{"Awaiting Cake"}
 )
 
-func loadComments(client *github.Client, pr *PullRequest) error {
+func loadComments(client *github.Client, review *ReviewRequest) error {
 	var allComments []github.IssueComment
 
 	opts := github.IssueListCommentsOptions{}
 
 	for {
-		comments, resp, err := client.Issues.ListComments(pr.owner, pr.repo, *pr.issue.Number, &opts)
+		comments, resp, err := client.Issues.ListComments(*review.repo.Owner.Login, *review.repo.Name, *review.issue.Number, &opts)
 
 		if err != nil {
 			return err
@@ -52,16 +53,16 @@ func loadComments(client *github.Client, pr *PullRequest) error {
 		opts.ListOptions.Page = resp.NextPage
 	}
 
-	pr.comments = allComments
+	review.comments = allComments
 
 	return nil
 }
 
-func updateIssueReviewLabels(client *github.Client, log log15.Logger, pr PullRequest) error {
+func updateIssueReviewLabels(client *github.Client, log log15.Logger, review ReviewRequest) error {
 	oldLabels := []string{}
-	newLabels := []string{pr.CalculateAppropriateStatus()}
+	newLabels := []string{review.CalculateAppropriateStatus()}
 
-	for _, l := range pr.issue.Labels {
+	for _, l := range review.issue.Labels {
 		oldLabels = append(oldLabels, *l.Name)
 
 		switch *l.Name {
@@ -74,7 +75,7 @@ func updateIssueReviewLabels(client *github.Client, log log15.Logger, pr PullReq
 
 	log.Info("updating issue review label", "old_labels", oldLabels, "labels", newLabels)
 
-	_, _, err := client.Issues.ReplaceLabelsForIssue(pr.owner, pr.repo, pr.Number(), newLabels)
+	_, _, err := client.Issues.ReplaceLabelsForIssue(*review.repo.Owner.Login, *review.repo.Name, review.Number(), newLabels)
 
 	if err != nil {
 		log.Error("unable to update issue review label", "err", err)
@@ -83,18 +84,23 @@ func updateIssueReviewLabels(client *github.Client, log log15.Logger, pr PullReq
 	return err
 }
 
-type PullRequest struct {
-	issue    github.Issue
-	comments []github.IssueComment
-	owner    string
-	repo     string
+type Issue struct {
+	github.Issue
+
+	Repository github.Repository `json:"repository,omitempty"`
 }
 
-func (p *PullRequest) IsWIP() bool {
+type ReviewRequest struct {
+	issue    github.Issue
+	repo     github.Repository
+	comments []github.IssueComment
+}
+
+func (p *ReviewRequest) IsWIP() bool {
 	return WIPRegex.MatchString(*p.issue.Title)
 }
 
-func (p *PullRequest) IsCaked() bool {
+func (p *ReviewRequest) IsCaked() bool {
 	for _, c := range p.comments {
 		if strings.Contains(*c.Body, ":cake:") {
 			return true
@@ -104,7 +110,7 @@ func (p *PullRequest) IsCaked() bool {
 	return false
 }
 
-func (p *PullRequest) CalculateAppropriateStatus() string {
+func (p *ReviewRequest) CalculateAppropriateStatus() string {
 	switch {
 	case p.IsWIP():
 		return WIPLabel
@@ -115,7 +121,7 @@ func (p *PullRequest) CalculateAppropriateStatus() string {
 	}
 }
 
-func (p *PullRequest) ExtractTrelloCardUrls() []string {
+func (p *ReviewRequest) ExtractTrelloCardUrls() []string {
 	urls := TrelloUrlRegex.FindAllString(*p.issue.Body, -1)
 
 	for _, c := range p.comments {
@@ -125,70 +131,104 @@ func (p *PullRequest) ExtractTrelloCardUrls() []string {
 	return urls
 }
 
-func (p *PullRequest) Number() int {
+func (p *ReviewRequest) Number() int {
 	return *p.issue.Number
 }
 
-func (p *PullRequest) URL() string {
+func (p *ReviewRequest) URL() string {
 	return *p.issue.HTMLURL
 }
 
-func PullRequestFromIssue(i github.Issue, c *github.Client) PullRequest {
-	components := IssueUrlRegex.FindStringSubmatch(*i.URL)
-	org := components[1]
-	repo := components[2]
-
-	pr := PullRequest{
+func ReviewRequestFromIssue(r github.Repository, i github.Issue, c *github.Client) ReviewRequest {
+	review := ReviewRequest{
 		issue: i,
-		owner: org,
-		repo:  repo,
+		repo:  r,
 	}
 
-	loadComments(c, &pr)
+	loadComments(c, &review)
 
-	return pr
+	return review
 }
 
-func pullRequestIssues(connection *github.Client, org string) ([]PullRequest, error) {
-	var allIssues []PullRequest
-	var numIssues int
+func ghGet(url string, v interface{}) (*github.Response, error) {
+	r, err := gh.NewRequest("GET", url, nil)
 
-	opts := github.IssueListOptions{
-		Filter:    "all",
-		Sort:      "updated",
-		Direction: "descending",
+	if err != nil {
+		return nil, err
 	}
 
+	return gh.Do(r, v)
+}
+
+func ghNextPageURL(r *github.Response) string {
+	if r == nil {
+		return ""
+	}
+
+	if links, ok := r.Response.Header["Link"]; ok && len(links) > 0 {
+		for _, link := range strings.Split(links[0], ",") {
+			segments := strings.Split(strings.TrimSpace(link), ";")
+
+			// link must at least have href and rel
+			if len(segments) < 2 {
+				continue
+			}
+
+			// ensure href is properly formatted
+			if !strings.HasPrefix(segments[0], "<") || !strings.HasSuffix(segments[0], ">") {
+				continue
+			}
+
+			// try to pull out page parameter
+			url := segments[0][1 : len(segments[0])-1]
+
+			for _, segment := range segments[1:] {
+				if strings.Contains(segment, `rel="next"`) {
+					return url
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+func ReviewRequestsInOrg(connection *github.Client, org string) ([]ReviewRequest, error) {
+	var allIssues []ReviewRequest
+	var pageIssues []Issue
+	var numIssues int
+
+	url := fmt.Sprintf("https://api.github.com/orgs/%s/issues?filter=all&sort=updated&direction=descending", org)
+
 	for {
-		log.Info("loading page of issues", "ops", opts, "org", org)
+		log.Info("loading org issues", "url", url)
 
-		issues, resp, err := connection.Issues.ListByOrg(org, &opts)
-
-		numIssues += len(issues)
+		resp, err := ghGet(url, &pageIssues)
 
 		if err != nil {
 			log.Error("error while loading issues", "err", err)
 
 			return nil, err
 		}
+		numIssues += len(pageIssues)
 
-		for _, i := range issues {
-			if i.PullRequestLinks == nil {
-				log.Debug("excluding non-pr issue", "issue.number", *i.Number, "url", *i.HTMLURL)
+		for _, i := range pageIssues {
+			if i.Issue.PullRequestLinks == nil {
+				log.Debug("excluding non-pr issue", "issue.number", *i.Issue.Number, "url", *i.Issue.HTMLURL)
 				continue
 			}
 
-			log.Debug("found pr issue", "issue.number", *i.Number, "url", *i.HTMLURL)
+			log.Debug("found pr issue", "issue.number", *i.Issue.Number, "url", *i.Issue.HTMLURL)
 
-			allIssues = append(allIssues, PullRequestFromIssue(i, connection))
+			allIssues = append(allIssues, ReviewRequestFromIssue(i.Repository, i.Issue, connection))
 		}
 
-		if resp.NextPage == 0 {
+		url = ghNextPageURL(resp)
+
+		if url == "" {
 			log.Info("finished loading pull request issues", "issues.len", numIssues, "pr_issues.len", len(allIssues))
 			break
 		}
-
-		opts.ListOptions.Page = resp.NextPage
 	}
 
 	return allIssues, nil
