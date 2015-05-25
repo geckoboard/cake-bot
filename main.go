@@ -61,7 +61,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		return
 	}
 
-	if *payload.Issue.Number != 0 {
+	if *payload.Issue.Number != 0 && payload.Issue.PullRequestLinks != nil {
 		l = l.New(
 			"repo.name", *payload.Repository.Name,
 			"repo.owner", *payload.Repository.Owner.Login,
