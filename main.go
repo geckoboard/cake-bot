@@ -81,7 +81,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 
 	l.Debug("checking if webhook can be handled")
 
-	if *payload.Issue.Number != 0 && payload.Issue.PullRequestLinks != nil {
+	if payload.Issue != nil && *payload.Issue.Number != 0 && payload.Issue.PullRequestLinks != nil {
 		triggerInspection = true
 
 		l.Info("found issue with pr links")
