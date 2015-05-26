@@ -64,7 +64,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		Action      string
 		Issue       *github.Issue
 		Repository  *github.Repository
-		PullRequest *github.PullRequest
+		PullRequest *github.PullRequest `json:"pull_request"`
 	}
 	var err error
 
