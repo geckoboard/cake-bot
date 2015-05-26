@@ -96,7 +96,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		triggerInspection = true
 
 		l.Info("found issue with pr links")
-	} else if payload.PullRequest != nil && payload.Action == "opened" {
+	} else if payload.PullRequest != nil && payload.Action != "" {
 		triggerInspection = true
 
 		l.Info("found pr opened event, inferring issue")
