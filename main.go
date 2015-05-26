@@ -47,6 +47,19 @@ func ping(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	fmt.Println(w, "ok")
 }
 func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	l := log.New("endpoint", "webhook")
+
+	event := r.Header.Get("X-GitHub-Event")
+
+	switch event {
+	case "pull_request", "issue_comment":
+		// handle request
+	default:
+		l.Info("not handling webhook", "github_event", event)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	var payload struct {
 		Action      string
 		Issue       *github.Issue
@@ -57,15 +70,13 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 
 	var triggerInspection bool
 
-	l := log.New("endpoint", "webhook")
-
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		l.Error("could not unmarshal json", "err", err)
 		w.WriteHeader(501)
 		return
 	}
 
-	l := log.New("endpoint", "webhook", "action", payload.Action)
+	l = log.New("endpoint", "webhook", "action", payload.Action)
 
 	if payload.Repository != nil {
 		l = l.New(
@@ -80,8 +91,6 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 			"issue.url", *payload.Issue.HTMLURL,
 		)
 	}
-
-	l.Debug("checking if webhook can be handled")
 
 	if payload.Issue != nil && *payload.Issue.Number != 0 && payload.Issue.PullRequestLinks != nil {
 		triggerInspection = true
@@ -100,7 +109,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 			return
 		}
 	} else {
-		l.Info("webhook payload does not refer to pull request")
+		l.Info("payload does not refer to pull request", "x-github-event", event)
 	}
 
 	if triggerInspection {
