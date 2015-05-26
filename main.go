@@ -57,13 +57,15 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 
 	var triggerInspection bool
 
-	l := log.New("endpoint", "webhook", "action", payload.Action)
+	l := log.New("endpoint", "webhook")
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		l.Error("could not unmarshal json", "err", err)
 		w.WriteHeader(501)
 		return
 	}
+
+	l := log.New("endpoint", "webhook", "action", payload.Action)
 
 	if payload.Repository != nil {
 		l = l.New(
