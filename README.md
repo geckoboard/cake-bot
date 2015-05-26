@@ -16,7 +16,7 @@ process:
 * The reviewer can go through the changes, asking questions and offering suggestions.
 * Sometimes the reviewer may want to make suggestions that they may improve the changes,
   but shouldn't prevent the changes from being merged if the author doesn't want to do
-  them. Reviewers can annotate these changes with the :surger: emoji.
+  them. Reviewers can annotate these changes with the :surfer: emoji.
 * When a reviewer is happy with the changes they can approve the pull request by commenting
   with a :cake: emoji, at which point the author can merge the pull request into master.
 
