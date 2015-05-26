@@ -109,7 +109,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 			return
 		}
 	} else {
-		l.Info("payload does not refer to pull request", "x-github-event", event)
+		l.Info("payload does not refer to pull request", "github_event", event)
 	}
 
 	if triggerInspection {
