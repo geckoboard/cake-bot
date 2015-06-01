@@ -82,10 +82,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	l = log.New("endpoint", "webhook", "action", payload.Action)
 
 	if payload.Repository != nil {
-		l = l.New(
-			"repo.name", *payload.Repository.Name,
-			"repo.owner", *payload.Repository.Owner.Login,
-		)
+		l = l.New("repo.path", fmt.Sprintf("%s/%s", *payload.Repository.Name, *payload.Repository.Owner.Login))
 	}
 
 	if payload.Issue != nil {
@@ -159,7 +156,7 @@ func runBulkSync(c Config) {
 		}
 
 		for _, rr := range issues {
-			l := bl.New("issue.repo", rr.RepositoryPath(), "issue.number", rr.Number(), "issue.url", rr.URL())
+			l := bl.New("repo.path", rr.RepositoryPath(), "issue.number", rr.Number(), "issue.url", rr.URL())
 
 			wg.Add(1)
 
