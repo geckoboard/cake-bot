@@ -158,15 +158,15 @@ func runBulkSync(c Config) {
 			return
 		}
 
-		for _, pr := range issues {
-			l := bl.New("issue.number", pr.Number(), "issue.url", pr.URL())
+		for _, rr := range issues {
+			l := bl.New("issue.repo", rr.RepositoryPath(), "issue.number", rr.Number(), "issue.url", rr.URL())
 
 			wg.Add(1)
 
 			go func(pr ReviewRequest, l log15.Logger) {
 				updateIssueReviewLabels(gh, l, pr)
 				wg.Done()
-			}(pr, l)
+			}(rr, l)
 		}
 	}()
 

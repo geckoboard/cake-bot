@@ -153,6 +153,10 @@ func (p *ReviewRequest) ExtractTrelloCardUrls() []string {
 	return urls
 }
 
+func (p *ReviewRequest) RepositoryPath() string {
+	return fmt.Sprintf("%s/%s", *p.repo.Owner.Login, *p.repo.Name)
+}
+
 func (p *ReviewRequest) Number() int {
 	return *p.issue.Number
 }
