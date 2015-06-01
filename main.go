@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
+	"github.com/dchest/uniuri"
 	"github.com/geckoboard/goutils/router"
 	github "github.com/google/go-github/github"
 	"github.com/julienschmidt/httprouter"
@@ -22,8 +24,9 @@ var (
 )
 
 type Config struct {
-	Port      int
-	GithubOrg string
+	Port             int
+	GithubOrg        string
+	BulkSyncInterval int
 }
 
 // tokenSource is an oauth2.TokenSource which returns a static access token
@@ -130,6 +133,10 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 func runBulkSync(c Config) {
 	var wg sync.WaitGroup
 
+	bl := log.New("bulk.session", uniuri.NewLen(4))
+
+	bl.Info("starting bulk sync")
+
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
@@ -138,7 +145,7 @@ func runBulkSync(c Config) {
 		err := ensureOrgReposHaveLabels(c.GithubOrg, gh)
 
 		if err != nil {
-			log.Error("encountered error while ensuring all repos have lables", "err", err)
+			bl.Error("encountered error while ensuring all repos have lables", "err", err)
 		}
 	}()
 
@@ -147,12 +154,12 @@ func runBulkSync(c Config) {
 		issues, err := ReviewRequestsInOrg(gh, c.GithubOrg)
 
 		if err != nil {
-			log.Error("could not load issues from github org", "err", err)
+			bl.Error("could not load issues from github org", "err", err)
 			return
 		}
 
 		for _, pr := range issues {
-			l := log.New("issue.number", pr.Number(), "issue.url", pr.URL())
+			l := bl.New("issue.number", pr.Number(), "issue.url", pr.URL())
 
 			wg.Add(1)
 
@@ -164,6 +171,16 @@ func runBulkSync(c Config) {
 	}()
 
 	wg.Wait()
+
+	bl.Info("finished bulk sync")
+}
+
+func periodicallyRunSync(c Config) {
+	ticker := time.NewTicker(time.Second * time.Duration(c.BulkSyncInterval))
+
+	for _ = range ticker.C {
+		runBulkSync(c)
+	}
 }
 
 func main() {
@@ -175,6 +192,7 @@ func main() {
 	var c Config
 
 	flag.IntVar(&c.Port, "port", 0, "port to run http server on, if not set server does not run")
+	flag.IntVar(&c.BulkSyncInterval, "bulk-sync-interval", 30, "when running as a http server run a bulk sync every X seconds")
 	flag.StringVar(&c.GithubOrg, "github-org", "geckoboard", "the github org to manage issues for")
 	flag.Parse()
 
@@ -193,14 +211,16 @@ func main() {
 
 	gh = github.NewClient(tc)
 
-	runBulkSync(c)
-
 	if c.Port > 0 {
+		go periodicallyRunSync(c)
+
 		httpServer := http.Server{
 			Addr:    fmt.Sprintf(":%d", c.Port),
 			Handler: NewServer(),
 		}
 
 		httpServer.ListenAndServe()
+	} else {
+		runBulkSync(c)
 	}
 }
