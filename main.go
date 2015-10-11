@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	bugsnag "github.com/bugsnag/bugsnag-go"
 	"github.com/dchest/uniuri"
 	"github.com/geckoboard/cake-bot/ctx"
 	github "github.com/google/go-github/github"
@@ -129,11 +130,17 @@ func main() {
 
 		httpServer := http.Server{
 			Addr:    fmt.Sprintf(":%d", c.Port),
-			Handler: NewServer(),
+			Handler: bugsnag.Handler(NewServer()),
 		}
 
 		httpServer.ListenAndServe()
 	} else {
 		runBulkSync(c)
 	}
+}
+
+func init() {
+	bugsnag.Configure(bugsnag.Configuration{
+		APIKey: "4bff6f651b0aa990253ce5520f4e2a51",
+	})
 }
