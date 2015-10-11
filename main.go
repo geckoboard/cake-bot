@@ -141,6 +141,6 @@ func main() {
 
 func init() {
 	bugsnag.Configure(bugsnag.Configuration{
-		APIKey: "4bff6f651b0aa990253ce5520f4e2a51",
+		APIKey: os.Getenv("BUGSNAG_API_KEY"),
 	})
 }
