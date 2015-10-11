@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -48,6 +49,38 @@ func (w *webhookPayload) enhanceLogger(l log15.Logger) log15.Logger {
 	return l
 }
 
+func (w *webhookPayload) referencesPullRequest() bool {
+	return w.isPullRequestEvent() || w.isPROpenedEvent()
+}
+
+func (w *webhookPayload) isPullRequestEvent() bool {
+	return w.Issue != nil && *w.Issue.Number != 0 && w.Issue.PullRequestLinks != nil
+}
+
+func (w *webhookPayload) isPROpenedEvent() bool {
+	return w.PullRequest != nil && w.Action != ""
+
+}
+
+func (w *webhookPayload) ensurePullRequestLoaded(c context.Context) error {
+	if w.referencesPullRequest() {
+		ctx.Logger(c).Info("found issue with pr links")
+		return nil
+	}
+
+	if w.isPROpenedEvent() {
+		ctx.Logger(c).Info("found pr opened event, inferring issue")
+
+		issue, _, err := gh.Issues.Get(*w.Repository.Owner.Login, *w.Repository.Name, *w.PullRequest.Number)
+
+		w.Issue = issue
+
+		return err
+	}
+
+	return errors.New("webhook does not reference a pull request")
+}
+
 func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	c := ctx.WithLogger(context.Background(), logger.New("endpoint", "webhook"))
 
@@ -75,36 +108,27 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 
 	c = ctx.WithLogger(c, payload.enhanceLogger(ctx.Logger(c)))
 
-	if payload.Issue != nil && *payload.Issue.Number != 0 && payload.Issue.PullRequestLinks != nil {
-		triggerInspection = true
-
-		ctx.Logger(c).Info("found issue with pr links")
-	} else if payload.PullRequest != nil && payload.Action != "" {
-		triggerInspection = true
-
-		ctx.Logger(c).Info("found pr opened event, inferring issue")
-
-		payload.Issue, _, err = gh.Issues.Get(*payload.Repository.Owner.Login, *payload.Repository.Name, *payload.PullRequest.Number)
-
-		if err != nil {
-			ctx.Logger(c).Error("encountered error while loading issue", "err", err)
-			w.WriteHeader(501)
-			return
-		}
-	} else {
+	if !payload.referencesPullRequest() {
 		ctx.Logger(c).Info("payload does not refer to pull request", "github_event", event)
+		w.WriteHeader(http.StatusOK)
+		return
 	}
 
-	if triggerInspection {
+	err = payload.ensurePullRequestLoaded(c)
 
-		pr := ReviewRequestFromIssue(c, *payload.Repository, *payload.Issue, gh)
+	if err != nil {
+		ctx.Logger(c).Error("encountered error while loading issue", "err", err)
+		w.WriteHeader(501)
+		return
+	}
 
-		err = updateIssueReviewLabels(c, gh, pr)
+	pr := ReviewRequestFromIssue(c, *payload.Repository, *payload.Issue, gh)
 
-		if err != nil {
-			w.WriteHeader(501)
-			return
-		}
+	err = updateIssueReviewLabels(c, gh, pr)
+
+	if err != nil {
+		w.WriteHeader(501)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
