@@ -220,12 +220,12 @@ func ghNextPageURL(r *github.Response) string {
 
 func ReviewRequestsInOrg(connection *github.Client, org string) ([]ReviewRequest, error) {
 	var allIssues []ReviewRequest
-	var pageIssues []Issue
 	var numIssues int
 
 	url := fmt.Sprintf("https://api.github.com/orgs/%s/issues?filter=all&sort=updated&direction=descending", org)
 
 	for {
+		var pageIssues []Issue
 		log.Info("loading org issues", "url", url)
 
 		resp, err := ghGet(url, &pageIssues)
