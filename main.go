@@ -21,6 +21,7 @@ var (
 	GithubApiKey string
 	log          log15.Logger
 	gh           *github.Client
+	notifier     *Notifier
 )
 
 type Config struct {
@@ -181,6 +182,8 @@ func periodicallyRunSync(c Config) {
 }
 
 func main() {
+	notifier = NewNotifier()
+
 	log = log15.New()
 	log.SetHandler(log15.MultiHandler(
 		log15.StreamHandler(os.Stdout, log15.LogfmtFormat()),
