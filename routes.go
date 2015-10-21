@@ -36,7 +36,7 @@ func (w *webhookPayload) enhanceLogger(l log15.Logger) log15.Logger {
 	l = l.New("endpoint", "webhook", "action", w.Action)
 
 	if w.Repository != nil {
-		l = l.New("repo.path", fmt.Sprintf("%s/%s", *w.Repository.Name, *w.Repository.Owner.Login))
+		l = l.New("repo.name", *w.Repository.Name)
 	}
 
 	if w.Issue != nil {
@@ -97,8 +97,6 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 
 	var payload webhookPayload
 	var err error
-
-	var triggerInspection bool
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		ctx.Logger(c).Error("could not unmarshal json", "err", err)

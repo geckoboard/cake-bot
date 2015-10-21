@@ -70,13 +70,13 @@ func runBulkSync(conf Config) {
 		}
 
 		for _, rr := range issues {
-			c2 := ctx.WithLogger(c, ctx.Logger(c).New("repo.path", rr.RepositoryPath(), "issue.number", rr.Number(), "issue.url", rr.URL()))
+			c2 := ctx.WithLogger(c, ctx.Logger(c).New("repo.path", rr.RepositoryPath(), "issue.number", rr.Number()))
 
 			wg.Add(1)
 
 			go func(rr ReviewRequest, c2 context.Context) {
+				defer wg.Done()
 				updateIssueReviewLabels(c2, gh, rr)
-				wg.Done()
 			}(rr, c2)
 		}
 	}()
@@ -97,7 +97,10 @@ func periodicallyRunSync(c Config) {
 func main() {
 	logger = log15.New()
 	logger.SetHandler(log15.MultiHandler(
-		log15.StreamHandler(os.Stdout, log15.LogfmtFormat()),
+		log15.LvlFilterHandler(
+			log15.LvlDebug,
+			log15.StreamHandler(os.Stdout, log15.LogfmtFormat()),
+		),
 	))
 
 	var c Config
