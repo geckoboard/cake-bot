@@ -48,6 +48,7 @@ type CakeEvent struct {
 	Username  string `json:"username"`
 	Text      string `json:"text"`
 	IconEmoji string `json:"icon_emoji"`
+	Parse     string `json:"parse"`
 }
 
 func NewNotifier(url string) *Notifier {
@@ -70,6 +71,7 @@ func (n *Notifier) PingUser(r ReviewRequest) {
 		Username:  "cake-bot",
 		Text:      "@" + user + " you have received a :cake: for " + r.URL(),
 		IconEmoji: ":sheep:",
+		Parse:     "full",
 	}
 
 	payload, err := json.Marshal(e)
