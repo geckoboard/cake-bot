@@ -50,9 +50,9 @@ type CakeEvent struct {
 	IconEmoji string `json:"icon_emoji"`
 }
 
-func NewNotifier() *Notifier {
+func NewNotifier(url string) *Notifier {
 	return &Notifier{
-		Webhook: "https://hooks.slack.com/services/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",
+		Webhook: url,
 	}
 }
 
@@ -80,6 +80,7 @@ func (n *Notifier) PingUser(r ReviewRequest) {
 
 	req, err := http.NewRequest("POST", n.Webhook, bytes.NewBuffer(payload))
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")

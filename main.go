@@ -27,6 +27,7 @@ var (
 type Config struct {
 	Port             int
 	GithubOrg        string
+	SlackWebhook     string
 	BulkSyncInterval int
 }
 
@@ -182,7 +183,6 @@ func periodicallyRunSync(c Config) {
 }
 
 func main() {
-	notifier = NewNotifier()
 
 	log = log15.New()
 	log.SetHandler(log15.MultiHandler(
@@ -194,7 +194,10 @@ func main() {
 	flag.IntVar(&c.Port, "port", 0, "port to run http server on, if not set server does not run")
 	flag.IntVar(&c.BulkSyncInterval, "bulk-sync-interval", 30, "when running as a http server run a bulk sync every X seconds")
 	flag.StringVar(&c.GithubOrg, "github-org", "geckoboard", "the github org to manage issues for")
+	flag.StringVar(&c.SlackWebhook, "slack-hook", "", "Slack webhook")
 	flag.Parse()
+
+	notifier = NewNotifier(c.SlackWebhook)
 
 	token := os.Getenv("GITHUB_ACCESS_TOKEN")
 
