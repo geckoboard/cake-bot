@@ -63,10 +63,10 @@ func (n *Notifier) PingUser(r ReviewRequest) {
 		return
 	}
 
-	log.Info("Ping user", user, "for a cake")
+	log.Info("Ping user " + user + " for a cake")
 
 	e := CakeEvent{
-		Channel:   "#dev",
+		Channel:   "#devs",
 		Username:  "cake-bot",
 		Text:      "@" + user + " you have received a :cake: for " + r.URL(),
 		IconEmoji: ":sheep:",
@@ -83,11 +83,22 @@ func (n *Notifier) PingUser(r ReviewRequest) {
 		fmt.Println(err)
 		return
 	}
+
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := slackApi.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Expected 200 StatusOK, got %v\n", resp.Status)
+		return
+	}
+
+	return
 }
 
 func init() {
