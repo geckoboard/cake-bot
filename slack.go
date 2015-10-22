@@ -18,7 +18,8 @@ type Notifier struct {
 }
 
 var userMap = map[string]string{
-	"t-o-m-": "tomhirst",
+	"t-o-m-":    "tomhirst",
+	"tomrandle": "tomr",
 }
 
 func GuessSlackUsername(user *github.User) string {
@@ -65,9 +66,9 @@ func (n *Notifier) PingUser(r ReviewRequest) {
 	log.Info("Ping user", user, "for a cake")
 
 	e := CakeEvent{
-		Channel:   "@" + user,
+		Channel:   "#dev",
 		Username:  "cake-bot",
-		Text:      "You have received a :cake: for " + r.URL(),
+		Text:      "@" + user + " you have received a :cake: for " + r.URL(),
 		IconEmoji: ":sheep:",
 	}
 
