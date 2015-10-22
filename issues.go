@@ -101,6 +101,10 @@ func updateIssueReviewLabels(client *github.Client, log log15.Logger, review Rev
 			log.Error("unable to update issue review label", "err", err)
 			return err
 		}
+
+		if review.IsCaked() {
+			notifier.PingUser(review)
+		}
 	}
 
 	return nil
