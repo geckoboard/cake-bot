@@ -69,12 +69,12 @@ func (w *webhookPayload) isPROpenedEvent() bool {
 
 func (w *webhookPayload) ensurePullRequestLoaded(c context.Context) error {
 	if w.referencesPullRequest() {
-		ctx.Logger(c).Info("found issue with pr links")
+		ctx.Logger(c).Info("at", "webhook.event_includes_pull_request_details")
 		return nil
 	}
 
 	if w.isPROpenedEvent() {
-		ctx.Logger(c).Info("found pr opened event, inferring issue")
+		ctx.Logger(c).Info("at", "webhook.loading_pull_request_details")
 
 		issue, _, err := gh.Issues.Get(*w.Repository.Owner.Login, *w.Repository.Name, *w.PullRequest.Number)
 
@@ -87,7 +87,13 @@ func (w *webhookPayload) ensurePullRequestLoaded(c context.Context) error {
 }
 
 func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	c := ctx.WithLogger(context.Background(), logger.With("endpoint", "webhook"))
+	c := ctx.WithLogger(
+		context.Background(),
+		logger.With(
+			"endpoint", "webhook",
+			"request_id", r.Header.Get("X-Request-ID"),
+		),
+	)
 
 	event := r.Header.Get("X-GitHub-Event")
 
@@ -95,7 +101,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	case "pull_request", "issue_comment":
 		// handle request
 	default:
-		ctx.Logger(c).Info("not handling webhook", "github_event", event)
+		ctx.Logger(c).Info("at", "webhook.ignore_event", "github_event", event)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -104,7 +110,8 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	var err error
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		ctx.Logger(c).Error("could not unmarshal json", "err", err)
+		bugsnag.notify(err)
+		ctx.Logger(c).Error("at", "webhook.unmarshal_error", "err", err)
 		w.WriteHeader(501)
 		return
 	}
@@ -112,7 +119,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	c = ctx.WithLogger(c, payload.enhanceLogger(ctx.Logger(c)))
 
 	if !payload.referencesPullRequest() {
-		ctx.Logger(c).Info("payload does not refer to pull request", "github_event", event)
+		ctx.Logger(c).Info("at", "webhook.not_pull_request", "github_event", event)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -120,7 +127,8 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	err = payload.ensurePullRequestLoaded(c)
 
 	if err != nil {
-		ctx.Logger(c).Error("encountered error while loading issue", "err", err)
+		ctx.Logger(c).Error("at", "webhook.could_not_load_pull_request", "err", err)
+		bugsnag.Notify(err)
 		w.WriteHeader(501)
 		return
 	}
@@ -130,9 +138,13 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	err = updateIssueReviewLabels(c, gh, pr)
 
 	if err != nil {
+		ctx.Logger(c).Error("at", "webhook.could_not_update_pull_request", "err", err)
+		bugsnag.Notify(err)
 		w.WriteHeader(501)
 		return
 	}
+
+	ctx.Logger(c).Info("at", "webhook.pull_request_updated")
 
 	w.WriteHeader(http.StatusOK)
 }
