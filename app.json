@@ -1,16 +1,23 @@
 {
   "name": "PRBot",
-  "description": "A small bot for managing code review on Github",
+  "description": "A small bot for managing code review process on Github",
   "env": {
     "BUILDPACK_URL": "https://github.com/heroku/heroku-buildpack-go",
     "GITHUB_ACCESS_TOKEN": {
-      "description": "Access token for a github user that can access all repos in your GH organization",
+      "description": "Access token for a github user that can access all repos in your GH organization. Generate one here: https://github.com/settings/tokens",
       "required": true
     },
     "GITHUB_ORGANIZATION": {
-      "description": "The organization within which to manage pull requests",
+      "description": "The organization within which to manage pull requests.",
       "required": true
+    },
+    "SLACK_HOOK": {
+      "description": "The URL of an 'incoming webhook' in slack. This will ping users when their pull requests are caked.",
+      "required": false
     }
-  }
+  },
+  "addons": [
+    "papertrail:fixa"  
+  ]
 }
 
