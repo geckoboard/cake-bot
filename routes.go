@@ -16,11 +16,16 @@ import (
 
 func NewServer() http.Handler {
 	r := router.New()
+	r.GET("/", root)
 	r.GET("/ping", ping)
 	r.POST("/github", githubWebhook)
 	return r
 }
 
+func root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+	w.Header().Add("Location", "https://github.com/geckoboard/cake-bot")
+	w.WriteHeader(302)
+}
 func ping(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	fmt.Println(w, "ok")
 }
