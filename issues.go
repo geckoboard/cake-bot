@@ -84,30 +84,32 @@ func updateIssueReviewLabels(c context.Context, client *github.Client, review Re
 
 	var labelsNeedUpdating bool
 
+	l := ctx.Logger(c).With("old_labels", fmt.Sprintf("%v", oldLabels), "new_labels", fmt.Sprintf("%v", newLabels))
+
 	switch {
 	case !foundReviewLabel:
 		labelsNeedUpdating = true
-		ctx.Logger(c).Info("could not find review label", "old_labels", oldLabels, "new_labels", newLabels)
+		l.Info("at", "assigning_initial_label")
 	case incorrectReviewLabel:
 		labelsNeedUpdating = true
-		ctx.Logger(c).Info("review label is incorrect", "rr.path", review.RepositoryPath(), "old_labels", oldLabels, "new_labels", newLabels)
+		l.Info("at", "correcting_label", "rr.path", review.RepositoryPath())
 		for _, comment := range review.comments {
-			ctx.Logger(c).Error("found unexpected comment", "comment.pointer", fmt.Sprintf("%#v", comment.ID), "comment.url", *comment.HTMLURL)
+			ctx.Logger(c).Error("msg", "found unexpected comment", "comment.pointer", fmt.Sprintf("%#v", comment.ID), "comment.url", *comment.HTMLURL)
 		}
 	default:
-		ctx.Logger(c).Info("review label does not need updating", "labels", oldLabels)
+		l.Info("at", "current_label_is_accurate")
 	}
 
 	if labelsNeedUpdating {
 		_, _, err := client.Issues.ReplaceLabelsForIssue(*review.repo.Owner.Login, *review.repo.Name, review.Number(), newLabels)
 
 		if err != nil {
-			ctx.Logger(c).Error("unable to update issue review label", "err", err)
+			ctx.Logger(c).Error("at", "label_update_failed", "err", err)
 			return err
 		}
 
-		if review.IsCaked() {
-			notifier.PingUser(review)
+		if review.IsCaked(c) {
+			notifier.PingUser(c, review)
 		}
 	}
 
@@ -133,7 +135,7 @@ func (p *ReviewRequest) IsWIP(_ context.Context) bool {
 func (p *ReviewRequest) IsCaked(c context.Context) bool {
 	for _, comment := range p.comments {
 		if strings.Contains(*comment.Body, ":cake:") {
-			ctx.Logger(c).Info("found cake", "comment.issue.number", *p.issue.Number, "comment.pointer", fmt.Sprintf("%#v", comment.ID), "comment.url", *comment.HTMLURL)
+			ctx.Logger(c).Info("msg", "found cake", "comment.issue.number", *p.issue.Number, "comment.pointer", fmt.Sprintf("%#v", comment.ID), "comment.url", *comment.HTMLURL)
 			return true
 		}
 	}
@@ -148,7 +150,7 @@ func (p *ReviewRequest) CalculateAppropriateStatus(c context.Context) string {
 	case p.IsCaked(c):
 		return CakedLabel
 	default:
-		ctx.Logger(c).Info("awaiting cake", "comments.len", len(p.comments))
+		ctx.Logger(c).Info("msg", "awaiting cake", "comments.len", len(p.comments))
 		return AwaitingCakeLabel
 	}
 }
@@ -184,7 +186,7 @@ func ReviewRequestFromIssue(c context.Context, r github.Repository, i github.Iss
 	loadComments(c, cl, &review)
 
 	for _, comment := range review.comments {
-		ctx.Logger(c).Info("found comment", "issue", *i.Number, "comment.pointer", fmt.Sprintf("%#v", comment.ID), "comment.url", *comment.HTMLURL)
+		ctx.Logger(c).Info("msg", "found comment", "issue", *i.Number, "comment.pointer", fmt.Sprintf("%#v", comment.ID), "comment.url", *comment.HTMLURL)
 	}
 
 	return review
@@ -240,11 +242,11 @@ func ReviewRequestsInOrg(c context.Context, connection *github.Client, org strin
 
 	for {
 		var pageIssues []Issue
-		ctx.Logger(c).Info("loading org issues", "url", url)
+		ctx.Logger(c).Info("msg", "loading org issues", "url", url)
 		resp, err := ghGet(url, &pageIssues)
 
 		if err != nil {
-			ctx.Logger(c).Error("error while loading issues", "err", err)
+			ctx.Logger(c).Error("msg", "error while loading issues", "err", err)
 
 			return nil, err
 		}
@@ -252,11 +254,11 @@ func ReviewRequestsInOrg(c context.Context, connection *github.Client, org strin
 
 		for _, i := range pageIssues {
 			if i.Issue.PullRequestLinks == nil {
-				ctx.Logger(c).Debug("excluding non-pr issue", "issue.number", *i.Issue.Number, "url", *i.Issue.HTMLURL)
+				ctx.Logger(c).Debug("msg", "excluding non-pr issue", "issue.number", *i.Issue.Number, "url", *i.Issue.HTMLURL)
 				continue
 			}
 
-			ctx.Logger(c).Debug("found pr issue", "issue.number", *i.Issue.Number, "url", *i.Issue.HTMLURL)
+			ctx.Logger(c).Debug("msg", "found pr issue", "issue.number", *i.Issue.Number, "url", *i.Issue.HTMLURL)
 
 			allIssues = append(allIssues, ReviewRequestFromIssue(c, i.Repository, i.Issue, connection))
 		}
@@ -264,7 +266,7 @@ func ReviewRequestsInOrg(c context.Context, connection *github.Client, org strin
 		url = ghNextPageURL(resp)
 
 		if url == "" {
-			ctx.Logger(c).Info("loaded all review requests", "issues.len", numIssues, "review_requests.len", len(allIssues))
+			ctx.Logger(c).Info("msg", "loaded all review requests", "issues.len", numIssues, "review_requests.len", len(allIssues))
 			break
 		}
 	}
@@ -289,14 +291,14 @@ func ensureOrgReposHaveLabels(c context.Context, org string, client *github.Clie
 
 			go func(r github.Repository) {
 				defer wg.Done()
-				ctx.Logger(c).Debug("start syncing labels for repo", "repo.name", *r.Name)
+				ctx.Logger(c).Debug("msg", "start syncing labels for repo", "repo.name", *r.Name)
 				err := setupReviewFlagsInRepo(c, r, client)
 
 				if err != nil {
-					ctx.Logger(c).Error("error syncing repo review labels", "err", err, "repo", r.Name)
+					ctx.Logger(c).Error("msg", "error syncing repo review labels", "err", err, "repo", r.Name)
 				}
 
-				ctx.Logger(c).Info("synced labels for repo", "repo.name", *r.Name)
+				ctx.Logger(c).Info("msg", "synced labels for repo", "repo.name", *r.Name)
 			}(r)
 		}
 
@@ -313,19 +315,19 @@ func ensureOrgReposHaveLabels(c context.Context, org string, client *github.Clie
 }
 
 func setupReviewFlagsInRepo(c context.Context, repo github.Repository, client *github.Client) error {
-	c = ctx.WithLogger(c, ctx.Logger(c).New("repo.name", repo.Name))
+	c = ctx.WithLogger(c, ctx.Logger(c).With("repo.name", repo.Name))
 	opts := github.ListOptions{}
 	currentLabels, _, err := client.Issues.ListLabels(*repo.Owner.Login, *repo.Name, &opts)
 
 	if err != nil {
-		ctx.Logger(c).Error("unable to fetch current labels", "err", err)
+		ctx.Logger(c).Error("msg", "unable to fetch current labels", "err", err)
 		return err
 	}
 
 	for _, label := range deprecatedLabels {
 		for _, actualLabel := range currentLabels {
 			if strings.ToLower(*actualLabel.Name) == strings.ToLower(label) {
-				ctx.Logger(c).Info("deleting deprecated label", "repo.name", *repo.Name, "label", *actualLabel.Name)
+				ctx.Logger(c).Info("msg", "deleting deprecated label", "repo.name", *repo.Name, "label", *actualLabel.Name)
 
 				_, err = client.Issues.DeleteLabel(*repo.Owner.Login, *repo.Name, *actualLabel.Name)
 
@@ -359,11 +361,11 @@ func setupReviewFlagsInRepo(c context.Context, repo github.Repository, client *g
 		}
 
 		if !found {
-			ctx.Logger(c).Info("creating label", "repo.Name", *repo.Name, "label.name", label, "label.color", color)
+			ctx.Logger(c).Info("msg", "creating label", "repo.Name", *repo.Name, "label.name", label, "label.color", color)
 
 			_, _, err = client.Issues.CreateLabel(*repo.Owner.Login, *repo.Name, &github.Label{Name: &label, Color: &color})
 		} else if needsUpdating {
-			ctx.Logger(c).Info("updating label", "repo.Name", *repo.Name, "label.name", label, "label.color", color)
+			ctx.Logger(c).Info("msg", "updating label", "repo.Name", *repo.Name, "label.name", label, "label.color", color)
 
 			_, _, err = client.Issues.EditLabel(*repo.Owner.Login, *repo.Name, label, &github.Label{Name: &label, Color: &color})
 		}

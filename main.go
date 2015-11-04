@@ -11,15 +11,15 @@ import (
 	bugsnag "github.com/bugsnag/bugsnag-go"
 	"github.com/dchest/uniuri"
 	"github.com/geckoboard/cake-bot/ctx"
+	"github.com/geckoboard/cake-bot/log"
 	github "github.com/google/go-github/github"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
-	log15 "gopkg.in/inconshreveable/log15.v2"
 )
 
 var (
 	GithubApiKey string
-	logger       log15.Logger
+	logger       log.LeveledLogger
 	gh           *github.Client
 	notifier     *Notifier
 )
@@ -44,9 +44,9 @@ func (t *tokenSource) Token() (*oauth2.Token, error) {
 func runBulkSync(conf Config) {
 	var wg sync.WaitGroup
 
-	c := ctx.WithLogger(context.Background(), logger.New("bulk.session", uniuri.NewLen(4)))
+	c := ctx.WithLogger(context.Background(), logger.With("bulk.session", uniuri.NewLen(4)))
 
-	ctx.Logger(c).Info("starting bulk sync")
+	ctx.Logger(c).Info("msg", "starting bulk sync")
 
 	wg.Add(2)
 	go func() {
@@ -56,7 +56,7 @@ func runBulkSync(conf Config) {
 		err := ensureOrgReposHaveLabels(c, conf.GithubOrg, gh)
 
 		if err != nil {
-			ctx.Logger(c).Error("encountered error while ensuring all repos have lables", "err", err)
+			ctx.Logger(c).Error("msg", "encountered error while ensuring all repos have lables", "err", err)
 		}
 	}()
 
@@ -65,12 +65,12 @@ func runBulkSync(conf Config) {
 		issues, err := ReviewRequestsInOrg(c, gh, conf.GithubOrg)
 
 		if err != nil {
-			ctx.Logger(c).Error("could not load issues from github org", "err", err)
+			ctx.Logger(c).Error("msg", "could not load issues from github org", "err", err)
 			return
 		}
 
 		for _, rr := range issues {
-			c2 := ctx.WithLogger(c, ctx.Logger(c).New("repo.path", rr.RepositoryPath(), "issue.number", rr.Number()))
+			c2 := ctx.WithLogger(c, ctx.Logger(c).With("repo.path", rr.RepositoryPath(), "issue.number", rr.Number()))
 
 			wg.Add(1)
 
@@ -83,7 +83,7 @@ func runBulkSync(conf Config) {
 
 	wg.Wait()
 
-	ctx.Logger(c).Info("finished bulk sync")
+	ctx.Logger(c).Info("msg", "finished bulk sync")
 }
 
 func periodicallyRunSync(c Config) {
@@ -95,13 +95,7 @@ func periodicallyRunSync(c Config) {
 }
 
 func main() {
-	logger = log15.New()
-	logger.SetHandler(log15.MultiHandler(
-		log15.LvlFilterHandler(
-			log15.LvlDebug,
-			log15.StreamHandler(os.Stdout, log15.LogfmtFormat()),
-		),
-	))
+	logger = log.New()
 
 	var c Config
 
@@ -116,7 +110,7 @@ func main() {
 	token := os.Getenv("GITHUB_ACCESS_TOKEN")
 
 	if token == "" {
-		logger.Error("GITHUB_ACCESS_TOKEN not specified")
+		logger.Error("msg", "GITHUB_ACCESS_TOKEN not specified")
 		os.Exit(1)
 	}
 

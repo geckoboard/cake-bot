@@ -7,11 +7,11 @@ import (
 	"net/http"
 
 	"github.com/geckoboard/cake-bot/ctx"
+	"github.com/geckoboard/cake-bot/log"
 	"github.com/geckoboard/goutils/router"
 	"github.com/google/go-github/github"
 	"github.com/julienschmidt/httprouter"
 	"golang.org/x/net/context"
-	"gopkg.in/inconshreveable/log15.v2"
 )
 
 func NewServer() http.Handler {
@@ -32,15 +32,15 @@ type webhookPayload struct {
 	PullRequest *github.PullRequest `json:"pull_request"`
 }
 
-func (w *webhookPayload) enhanceLogger(l log15.Logger) log15.Logger {
-	l = l.New("endpoint", "webhook", "action", w.Action)
+func (w *webhookPayload) enhanceLogger(l log.LeveledLogger) log.LeveledLogger {
+	l = l.With("endpoint", "webhook", "action", w.Action)
 
 	if w.Repository != nil {
-		l = l.New("repo.name", *w.Repository.Name)
+		l = l.With("repo.name", *w.Repository.Name)
 	}
 
 	if w.Issue != nil {
-		l = l.New(
+		l = l.With(
 			"issue.number", *w.Issue.Number,
 			"issue.url", *w.Issue.HTMLURL,
 		)
@@ -82,7 +82,7 @@ func (w *webhookPayload) ensurePullRequestLoaded(c context.Context) error {
 }
 
 func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	c := ctx.WithLogger(context.Background(), logger.New("endpoint", "webhook"))
+	c := ctx.WithLogger(context.Background(), logger.With("endpoint", "webhook"))
 
 	event := r.Header.Get("X-GitHub-Event")
 
