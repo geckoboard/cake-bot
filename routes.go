@@ -9,14 +9,13 @@ import (
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/geckoboard/cake-bot/log"
-	"github.com/geckoboard/goutils/router"
 	"github.com/google/go-github/github"
 	"github.com/julienschmidt/httprouter"
 	"golang.org/x/net/context"
 )
 
 func NewServer() http.Handler {
-	r := router.New()
+	r := httprouter.New()
 	r.GET("/", root)
 	r.GET("/ping", ping)
 	r.POST("/github", githubWebhook)
