@@ -6,7 +6,7 @@ AWS_CLI_VERSION = 1.7.3
 # This is needed as test-ci uses bash process substitution
 SHELL = /bin/bash
 
-.PHONY: all build clean import install-ci-dep package release run test test-ci test-race update-deps
+.PHONY: all build clean import install-ci-dep package release run run-web test test-ci test-race update-deps
 
 all: test
 
@@ -18,6 +18,9 @@ clean:
 	rm -f bin/$(NAME)
 
 run: build
+	bin/$(NAME)
+
+run-web: build
 	bin/$(NAME) -port 9098
 
 test:

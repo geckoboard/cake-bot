@@ -3,12 +3,29 @@
 	"GoVersion": "go1.4.1",
 	"Deps": [
 		{
+			"ImportPath": "github.com/bugsnag/bugsnag-go",
+			"Comment": "v1.0.5-2-g72ff9e1",
+			"Rev": "72ff9e15e8c5ae52e8db1dd5dd1f77a9f2f1a895"
+		},
+		{
+			"ImportPath": "github.com/bugsnag/osext",
+			"Rev": "0dd3f918b21bec95ace9dc86c7e70266cfc5c702"
+		},
+		{
+			"ImportPath": "github.com/bugsnag/panicwrap",
+			"Rev": "e5f9854865b9778a45169fc249e99e338d4d6f27"
+		},
+		{
 			"ImportPath": "github.com/dchest/uniuri",
 			"Rev": "396b73a566d0993675357e6648bb98587a6162b4"
 		},
 		{
 			"ImportPath": "github.com/geckoboard/goutils/router",
 			"Rev": "c0fb2505de0275ec086830e538a016e61da2b70c"
+		},
+		{
+			"ImportPath": "github.com/go-kit/kit/log",
+			"Rev": "3978daeead5256ef70951fa257a7949f56286177"
 		},
 		{
 			"ImportPath": "github.com/google/go-github/github",
@@ -38,6 +55,15 @@
 			"ImportPath": "gopkg.in/inconshreveable/log15.v2",
 			"Comment": "v2.10",
 			"Rev": "dc7890abeaadcb6a79a9a5ee30bc1897bbf97713"
+		},
+		{
+			"ImportPath": "gopkg.in/logfmt.v0",
+			"Rev": "c50dc9aa845e681529d8e49d3dc11ec0195aacac"
+		},
+		{
+			"ImportPath": "gopkg.in/stack.v1",
+			"Comment": "v1.4.0",
+			"Rev": "0585967eab0016c8e4e2d55ac20585b469574cec"
 		}
 	]
 }

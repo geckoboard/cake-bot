@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/bugsnag/bugsnag-go"
+	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/google/go-github/github"
+	"golang.org/x/net/context"
 
 	"net/http"
 	"strings"
@@ -57,14 +60,14 @@ func NewNotifier(url string) *Notifier {
 	}
 }
 
-func (n *Notifier) PingUser(r ReviewRequest) {
+func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
+	l := ctx.Logger(c).With("at", "slack.ping-user")
+
 	user := GuessSlackUsername(r.issue.User)
 	if user == "" {
-		log.Info("User not found for", r.issue.User.Name)
+		l.Error("msg", "user not found")
 		return
 	}
-
-	log.Info("Ping user " + user + " for a cake")
 
 	e := CakeEvent{
 		Channel:   "#devs",
@@ -74,15 +77,19 @@ func (n *Notifier) PingUser(r ReviewRequest) {
 		Parse:     "full",
 	}
 
+	l = l.With("slack.user", user, "slack.channel", e.Channel)
+
 	payload, err := json.Marshal(e)
 	if err != nil {
-		fmt.Println(err)
+		l.Error("msg", "unable to encode cake event", "err", err)
+		bugsnag.Notify(err)
 		return
 	}
 
 	req, err := http.NewRequest("POST", n.Webhook, bytes.NewBuffer(payload))
 	if err != nil {
-		fmt.Println(err)
+		l.Error("msg", "unable to create request", "err", err)
+		bugsnag.Notify(err)
 		return
 	}
 
@@ -90,15 +97,19 @@ func (n *Notifier) PingUser(r ReviewRequest) {
 
 	resp, err := slackApi.Do(req)
 	if err != nil {
-		fmt.Println(err)
+		l.Error("msg", "unable to create request", "err", err)
+		bugsnag.Notify(err)
 		return
 	}
 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Expected 200 StatusOK, got %v\n", resp.Status)
+		l.Error("msg", "unexpected response status", "resp.Status", resp.Status)
+		bugsnag.Notify(fmt.Errorf("unexpected response code %d, expected %d", resp.StatusCode, http.StatusOK))
 		return
 	}
+
+	l.Info("msg", "ping successful")
 
 	return
 }
