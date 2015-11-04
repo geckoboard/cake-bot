@@ -41,56 +41,64 @@ func (t *tokenSource) Token() (*oauth2.Token, error) {
 	return t.token, nil
 }
 
-func runBulkSync(conf Config) {
+func bulksyncLabels(conf Config) {
+	c := ctx.WithLogger(context.Background(), logger.With("bulk_sync_labels.session", uniuri.NewLen(4)))
+
+	ctx.Logger(c).Info("at", "bulk_sync_labels.start")
+
+	err := ensureOrgReposHaveLabels(c, conf.GithubOrg, gh)
+
+	if err != nil {
+		ctx.Logger(c).Error("at", "sync_labels.error", "err", err)
+	}
+
+	ctx.Logger(c).Info("at", "bulk_sync_labels.end")
+}
+
+func bulkSyncCakes(conf Config) {
 	var wg sync.WaitGroup
 
-	c := ctx.WithLogger(context.Background(), logger.With("bulk.session", uniuri.NewLen(4)))
+	c := ctx.WithLogger(context.Background(), logger.With("bulk_sync_cakes.session", uniuri.NewLen(4)))
 
-	ctx.Logger(c).Info("msg", "starting bulk sync")
+	ctx.Logger(c).Info("at", "bulk_sync_cakes.start")
 
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		return
+	stream := NewReviewRequestStream(gh, conf.GithubOrg).Stream(c)
 
-		err := ensureOrgReposHaveLabels(c, conf.GithubOrg, gh)
+	for {
+		next, channelOpen := <-stream
 
-		if err != nil {
-			ctx.Logger(c).Error("msg", "encountered error while ensuring all repos have lables", "err", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		issues, err := ReviewRequestsInOrg(c, gh, conf.GithubOrg)
-
-		if err != nil {
-			ctx.Logger(c).Error("msg", "could not load issues from github org", "err", err)
+		if !channelOpen {
 			return
 		}
 
-		for _, rr := range issues {
-			c2 := ctx.WithLogger(c, ctx.Logger(c).With("repo.path", rr.RepositoryPath(), "issue.number", rr.Number()))
+		wg.Add(1)
 
-			wg.Add(1)
+		go func(sessionCtx context.Context, githubConnection *github.Client, review ReviewRequest) {
+			defer wg.Done()
 
-			go func(rr ReviewRequest, c2 context.Context) {
-				defer wg.Done()
-				updateIssueReviewLabels(c2, gh, rr)
-			}(rr, c2)
-		}
-	}()
+			reviewCtx := ctx.WithLogger(
+				sessionCtx,
+				ctx.Logger(sessionCtx).With(
+					"issue.repo", review.RepositoryPath(),
+					"issue.number", review.Number(),
+				),
+			)
+
+			updateIssueReviewLabels(reviewCtx, githubConnection, review)
+
+		}(c, gh, next)
+	}
 
 	wg.Wait()
 
-	ctx.Logger(c).Info("msg", "finished bulk sync")
+	ctx.Logger(c).Info("at", "bulk_sync_cakes.end")
 }
 
 func periodicallyRunSync(c Config) {
 	ticker := time.NewTicker(time.Second * time.Duration(c.BulkSyncInterval))
 
 	for _ = range ticker.C {
-		runBulkSync(c)
+		bulkSyncCakes(c)
 	}
 }
 
@@ -122,6 +130,8 @@ func main() {
 
 	gh = github.NewClient(tc)
 
+	bulksyncLabels(c)
+
 	if c.Port > 0 {
 		go periodicallyRunSync(c)
 
@@ -132,7 +142,7 @@ func main() {
 
 		httpServer.ListenAndServe()
 	} else {
-		runBulkSync(c)
+		bulkSyncCakes(c)
 	}
 }
 

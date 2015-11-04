@@ -19,7 +19,14 @@ type LeveledLogger interface {
 
 func New() LeveledLogger {
 	l := gklog.NewLogfmtLogger(os.Stdout)
-	kitlevels := gklevels.New(l)
+	kitlevels := gklevels.New(
+		l,
+
+		// Fudge values so that switching between debug/info levels does not
+		// mess with the log justification
+		gklevels.DebugValue("dbug"),
+		gklevels.ErrorValue("errr"),
+	)
 
 	if os.Getenv("SUPPRESS_TIMESTAMP") == "" {
 		kitlevels = kitlevels.With("ts", gklog.DefaultTimestampUTC)
