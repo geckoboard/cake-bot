@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/geckoboard/cake-bot/log"
 	"github.com/geckoboard/goutils/router"
@@ -110,7 +111,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	var err error
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		bugsnag.notify(err)
+		bugsnag.Notify(err)
 		ctx.Logger(c).Error("at", "webhook.unmarshal_error", "err", err)
 		w.WriteHeader(501)
 		return
