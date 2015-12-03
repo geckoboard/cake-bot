@@ -23,6 +23,7 @@ type Notifier struct {
 var userMap = map[string]string{
 	"t-o-m-":    "tomhirst",
 	"tomrandle": "tomr",
+	"kliriklara": "klara",
 }
 
 func GuessSlackUsername(user *github.User) string {
