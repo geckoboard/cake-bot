@@ -2,7 +2,6 @@ package ctx
 
 import (
 	"github.com/geckoboard/cake-bot/log"
-
 	"golang.org/x/net/context"
 )
 

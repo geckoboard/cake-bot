@@ -17,7 +17,7 @@
     }
   },
   "addons": [
-    "papertrail:fixa"  
+    "papertrail:fixa"
   ]
 }
 

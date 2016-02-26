@@ -26,6 +26,7 @@ func root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	w.Header().Add("Location", "https://github.com/geckoboard/cake-bot")
 	w.WriteHeader(302)
 }
+
 func ping(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	fmt.Println(w, "ok")
 }
@@ -77,7 +78,6 @@ func (w *webhookPayload) ensurePullRequestLoaded(c context.Context) error {
 		ctx.Logger(c).Info("at", "webhook.loading_pull_request_details")
 
 		issue, _, err := gh.Issues.Get(*w.Repository.Owner.Login, *w.Repository.Name, *w.PullRequest.Number)
-
 		w.Issue = issue
 
 		return err
@@ -107,7 +107,6 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	}
 
 	var payload webhookPayload
-	var err error
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		bugsnag.Notify(err)
@@ -124,9 +123,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		return
 	}
 
-	err = payload.ensurePullRequestLoaded(c)
-
-	if err != nil {
+	if err := payload.ensurePullRequestLoaded(c); err != nil {
 		ctx.Logger(c).Error("at", "webhook.could_not_load_pull_request", "err", err)
 		bugsnag.Notify(err)
 		w.WriteHeader(501)
@@ -135,9 +132,7 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 
 	pr := ReviewRequestFromIssue(c, *payload.Repository, *payload.Issue, gh)
 
-	err = updateIssueReviewLabels(c, gh, pr)
-
-	if err != nil {
+	if err := updateIssueReviewLabels(c, gh, pr); err != nil {
 		ctx.Logger(c).Error("at", "webhook.could_not_update_pull_request", "err", err)
 		bugsnag.Notify(err)
 		w.WriteHeader(501)
@@ -145,6 +140,5 @@ func githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 	}
 
 	ctx.Logger(c).Info("at", "webhook.pull_request_updated")
-
 	w.WriteHeader(http.StatusOK)
 }

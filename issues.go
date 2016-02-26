@@ -257,9 +257,7 @@ func (s *ReviewRequestStream) Stream(c context.Context) chan ReviewRequest {
 
 func (s *ReviewRequestStream) findReviews(c context.Context, out chan ReviewRequest) {
 	var numIssues, numPRs int
-	defer func() {
-		close(out)
-	}()
+	defer close(out)
 
 	url := fmt.Sprintf("https://api.github.com/orgs/%s/issues?filter=all&sort=updated&direction=ascending", s.org)
 
@@ -271,7 +269,6 @@ func (s *ReviewRequestStream) findReviews(c context.Context, out chan ReviewRequ
 
 		if err != nil {
 			ctx.Logger(c).Error("at", "fetch_org_reviews.unknown_error", "err", err)
-
 			return
 		}
 

@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/google/go-github/github"
 	"golang.org/x/net/context"
-
-	"net/http"
-	"strings"
 )
 
 var slackApi *http.Client
@@ -21,8 +20,8 @@ type Notifier struct {
 }
 
 var userMap = map[string]string{
-	"t-o-m-":    "tomhirst",
-	"tomrandle": "tomr",
+	"t-o-m-":     "tomhirst",
+	"tomrandle":  "tomr",
 	"kliriklara": "klara",
 }
 
@@ -102,8 +101,8 @@ func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
 		bugsnag.Notify(err)
 		return
 	}
-
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		l.Error("msg", "unexpected response status", "resp.Status", resp.Status)
 		bugsnag.Notify(fmt.Errorf("unexpected response code %d, expected %d", resp.StatusCode, http.StatusOK))
@@ -111,7 +110,6 @@ func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
 	}
 
 	l.Info("msg", "ping successful")
-
 	return
 }
 
