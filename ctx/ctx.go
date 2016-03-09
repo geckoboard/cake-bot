@@ -13,11 +13,13 @@ const (
 )
 
 func Logger(ctx context.Context) log.LeveledLogger {
-	if v, ok := ctx.Value(loggerKey).(log.LeveledLogger); ok {
-		return v
-	} else {
-		return log.New()
+	if v := ctx.Value(loggerKey); v != nil {
+		if l, ok := v.(log.LeveledLogger); ok {
+			return l
+		}
 	}
+
+	return log.New()
 }
 
 func WithLogger(ctx context.Context, l log.LeveledLogger) context.Context {
