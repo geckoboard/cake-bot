@@ -141,7 +141,7 @@ func (p *ReviewRequest) IsWIP(_ context.Context) bool {
 
 func (p *ReviewRequest) IsCaked(c context.Context) bool {
 	for _, comment := range p.comments {
-		if strings.Contains(*comment.Body, ":cake:") {
+		if strings.Contains(*comment.Body, ":cake:") || strings.Contains(*comment.Body, "🍰") {
 			return true
 		}
 	}
