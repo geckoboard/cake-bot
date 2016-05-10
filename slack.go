@@ -26,7 +26,7 @@ var userMap = map[string]string{
 }
 
 func GuessSlackUsername(user *github.User) string {
-	specialUser := userMap[*user.Login]
+	specialUser := userMap[strings.ToLower(*user.Login)]
 	if specialUser != "" {
 		return specialUser
 	}
