@@ -23,6 +23,7 @@ var userMap = map[string]string{
 	"t-o-m-":     "tomhirst",
 	"tomrandle":  "tomr",
 	"kliriklara": "klara",
+	"liggi": "liggi",
 }
 
 func GuessSlackUsername(user *github.User) string {
