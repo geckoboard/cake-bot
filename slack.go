@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
+	"github.com/geckoboard/cake-bot/slack"
 	"github.com/google/go-github/github"
 	"golang.org/x/net/context"
 )
@@ -19,12 +21,9 @@ type Notifier struct {
 	Webhook string
 }
 
-var userMap = map[string]string{
-	"t-o-m-":     "tomhirst",
-	"tomrandle":  "tomr",
-	"kliriklara": "klara",
-	"liggi": "liggi",
-}
+const GH_FIELD_NAME = "GitHub Username"
+
+var userMap = map[string]string{}
 
 func GuessSlackUsername(user *github.User) string {
 	specialUser := userMap[strings.ToLower(*user.Login)]
@@ -112,6 +111,66 @@ func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
 
 	l.Info("msg", "ping successful")
 	return
+}
+
+func BuildSlackUserMap(token string) error {
+	api := slack.New(token)
+
+	// Load all Slack users from the Tokens' Team
+	users, err := api.GetUsers()
+	if err != nil {
+		return err
+	}
+
+	// Load the Team profile and extract our custom github Field ID
+	team, err := api.GetTeamProfile()
+	if err != nil {
+		return err
+	}
+	GHID := findGithubFieldID(team)
+
+	// Load each users' profile in a go routine
+	var wg sync.WaitGroup
+	wg.Add(len(users))
+	for _, u := range users {
+		go func(u slack.User) {
+			defer wg.Done()
+			profile, err := api.GetUserProfile(u.ID)
+			if err != nil {
+				return
+			}
+
+			// They have a non empty field with the same ID corresponding
+			// to our custom github field
+			if name := findGithubUsername(GHID, profile); name != "" {
+				userMap[name] = u.Name
+			}
+		}(u)
+	}
+
+	wg.Wait()
+
+	return nil
+}
+
+func findGithubFieldID(team *slack.TeamProfile) string {
+	for _, f := range team.Fields {
+		if f.Label == GH_FIELD_NAME {
+			return f.ID
+		}
+	}
+
+	return ""
+}
+
+func findGithubUsername(fieldId string, profile *slack.UserProfile) string {
+	for id, field := range profile.Fields {
+		if id == fieldId {
+			return field.Value
+		}
+	}
+
+	return ""
 }
 
 func init() {

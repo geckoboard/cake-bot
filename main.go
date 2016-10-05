@@ -122,6 +122,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	slackToken := os.Getenv("SLACK_TOKEN")
+
+	if slackToken == "" {
+		logger.Error("msg", "SLACK_TOKEN not specified")
+		os.Exit(1)
+	}
+
+	BuildSlackUserMap(slackToken)
+
 	ts := &tokenSource{
 		&oauth2.Token{AccessToken: token},
 	}
