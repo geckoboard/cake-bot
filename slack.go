@@ -15,7 +15,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var slackApi *http.Client
+var slackHook = &http.Client{}
 
 type Notifier struct {
 	Webhook string
@@ -62,7 +62,7 @@ func NewNotifier(url, token string) *Notifier {
 	}
 }
 
-func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
+func (n Notifier) PingUser(c context.Context, r ReviewRequest) {
 	l := ctx.Logger(c).With("at", "slack.ping-user")
 
 	user := GuessSlackUsername(r.issue.User)
@@ -97,7 +97,7 @@ func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
 
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := slackApi.Do(req)
+	resp, err := slackHook.Do(req)
 	if err != nil {
 		l.Error("msg", "unable to create request", "err", err)
 		bugsnag.Notify(err)
@@ -115,7 +115,7 @@ func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
 	return
 }
 
-func (n *Notifier) BuildSlackUserMap() error {
+func (n Notifier) BuildSlackUserMap() error {
 	api := slack.New(n.Token)
 
 	// Load all Slack users from the Tokens' Team
@@ -173,8 +173,4 @@ func findGithubUsername(fieldId string, profile *slack.UserProfile) string {
 	}
 
 	return ""
-}
-
-func init() {
-	slackApi = &http.Client{}
 }
