@@ -127,7 +127,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	notifier = NewNotifier(c.SlackWebhook, token)
+	notifier = NewNotifier(c.SlackWebhook, slackToken)
 	if err := notifier.BuildSlackUserMap(); err != nil {
 		logger.Error("msg", fmt.Sprintf("building Slack user map raised an error: %s", err.Error()))
 		os.Exit(1)
