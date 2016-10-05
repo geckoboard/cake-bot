@@ -128,7 +128,10 @@ func main() {
 	}
 
 	notifier = NewNotifier(c.SlackWebhook, token)
-	notifier.BuildSlackUserMap()
+	if err := notifier.BuildSlackUserMap(); err != nil {
+		logger.Error("msg", fmt.Sprintf("building Slack user map raised an error: %s", err.Error()))
+		os.Exit(1)
+	}
 
 	ts := &tokenSource{
 		&oauth2.Token{AccessToken: token},

@@ -22,8 +22,6 @@ type Notifier struct {
 	Token   string
 }
 
-const GH_FIELD_NAME = "GitHub Username"
-
 var userMap = map[string]string{}
 
 func GuessSlackUsername(user *github.User) string {
@@ -157,7 +155,7 @@ func (n Notifier) BuildSlackUserMap() error {
 
 func findGithubFieldID(team *slack.TeamProfile) string {
 	for _, f := range team.Fields {
-		if f.Label == GH_FIELD_NAME {
+		if strings.Contains(strings.ToLower(f.Label), "github") {
 			return f.ID
 		}
 	}
