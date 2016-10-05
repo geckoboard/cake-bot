@@ -166,7 +166,7 @@ func findGithubFieldID(team *slack.TeamProfile) string {
 func findGithubUsername(fieldId string, profile *slack.UserProfile) string {
 	for id, field := range profile.Fields {
 		if id == fieldId {
-			return field.Value
+			return strings.TrimSpace(strings.ToLower(field.Value))
 		}
 	}
 
