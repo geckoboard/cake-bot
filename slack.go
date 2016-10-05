@@ -6,25 +6,23 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
+	"github.com/geckoboard/cake-bot/slack"
 	"github.com/google/go-github/github"
 	"golang.org/x/net/context"
 )
 
-var slackApi *http.Client
+var slackHook = &http.Client{}
 
 type Notifier struct {
 	Webhook string
+	Token   string
 }
 
-var userMap = map[string]string{
-	"t-o-m-":     "tomhirst",
-	"tomrandle":  "tomr",
-	"kliriklara": "klara",
-	"liggi": "liggi",
-}
+var userMap = map[string]string{}
 
 func GuessSlackUsername(user *github.User) string {
 	specialUser := userMap[strings.ToLower(*user.Login)]
@@ -55,13 +53,14 @@ type CakeEvent struct {
 	Parse     string `json:"parse"`
 }
 
-func NewNotifier(url string) *Notifier {
+func NewNotifier(url, token string) *Notifier {
 	return &Notifier{
 		Webhook: url,
+		Token:   token,
 	}
 }
 
-func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
+func (n Notifier) PingUser(c context.Context, r ReviewRequest) {
 	l := ctx.Logger(c).With("at", "slack.ping-user")
 
 	user := GuessSlackUsername(r.issue.User)
@@ -96,7 +95,7 @@ func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
 
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := slackApi.Do(req)
+	resp, err := slackHook.Do(req)
 	if err != nil {
 		l.Error("msg", "unable to create request", "err", err)
 		bugsnag.Notify(err)
@@ -114,6 +113,57 @@ func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
 	return
 }
 
-func init() {
-	slackApi = &http.Client{}
+func (n Notifier) BuildSlackUserMap() error {
+	api := slack.New(n.Token)
+
+	users, err := api.GetUsers()
+	if err != nil {
+		return err
+	}
+
+	team, err := api.GetTeamProfile()
+	if err != nil {
+		return err
+	}
+	GHID := findGithubFieldID(team)
+
+	var wg sync.WaitGroup
+	wg.Add(len(users))
+	for _, u := range users {
+		go func(u slack.User) {
+			defer wg.Done()
+			profile, err := api.GetUserProfile(u.ID)
+			if err != nil {
+				return
+			}
+
+			if name := findGithubUsername(GHID, profile); name != "" {
+				userMap[name] = u.Name
+			}
+		}(u)
+	}
+
+	wg.Wait()
+
+	return nil
+}
+
+func findGithubFieldID(team *slack.TeamProfile) string {
+	for _, f := range team.Fields {
+		if strings.Contains(strings.ToLower(f.Label), "github") {
+			return f.ID
+		}
+	}
+
+	return ""
+}
+
+func findGithubUsername(fieldId string, profile *slack.UserProfile) string {
+	for id, field := range profile.Fields {
+		if id == fieldId {
+			return strings.TrimSpace(strings.ToLower(field.Value))
+		}
+	}
+
+	return ""
 }

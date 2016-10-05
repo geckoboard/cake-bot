@@ -113,12 +113,23 @@ func main() {
 	flag.StringVar(&c.SlackWebhook, "slack-hook", "", "Slack webhook")
 	flag.Parse()
 
-	notifier = NewNotifier(c.SlackWebhook)
-
 	token := os.Getenv("GITHUB_ACCESS_TOKEN")
 
 	if token == "" {
 		logger.Error("msg", "GITHUB_ACCESS_TOKEN not specified")
+		os.Exit(1)
+	}
+
+	slackToken := os.Getenv("SLACK_TOKEN")
+
+	if slackToken == "" {
+		logger.Error("msg", "SLACK_TOKEN not specified")
+		os.Exit(1)
+	}
+
+	notifier = NewNotifier(c.SlackWebhook, token)
+	if err := notifier.BuildSlackUserMap(); err != nil {
+		logger.Error("msg", fmt.Sprintf("building Slack user map raised an error: %s", err.Error()))
 		os.Exit(1)
 	}
 
