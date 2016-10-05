@@ -19,6 +19,7 @@ var slackApi *http.Client
 
 type Notifier struct {
 	Webhook string
+	Token   string
 }
 
 const GH_FIELD_NAME = "GitHub Username"
@@ -54,9 +55,10 @@ type CakeEvent struct {
 	Parse     string `json:"parse"`
 }
 
-func NewNotifier(url string) *Notifier {
+func NewNotifier(url, token string) *Notifier {
 	return &Notifier{
 		Webhook: url,
+		Token:   token,
 	}
 }
 
@@ -113,8 +115,8 @@ func (n *Notifier) PingUser(c context.Context, r ReviewRequest) {
 	return
 }
 
-func BuildSlackUserMap(token string) error {
-	api := slack.New(token)
+func (n *Notifier) BuildSlackUserMap() error {
+	api := slack.New(n.Token)
 
 	// Load all Slack users from the Tokens' Team
 	users, err := api.GetUsers()

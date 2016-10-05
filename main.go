@@ -113,8 +113,6 @@ func main() {
 	flag.StringVar(&c.SlackWebhook, "slack-hook", "", "Slack webhook")
 	flag.Parse()
 
-	notifier = NewNotifier(c.SlackWebhook)
-
 	token := os.Getenv("GITHUB_ACCESS_TOKEN")
 
 	if token == "" {
@@ -129,7 +127,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	BuildSlackUserMap(slackToken)
+	notifier = NewNotifier(c.SlackWebhook, token)
+	notifier.BuildSlackUserMap()
 
 	ts := &tokenSource{
 		&oauth2.Token{AccessToken: token},
