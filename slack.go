@@ -116,20 +116,17 @@ func (n Notifier) PingUser(c context.Context, r ReviewRequest) {
 func (n Notifier) BuildSlackUserMap() error {
 	api := slack.New(n.Token)
 
-	// Load all Slack users from the Tokens' Team
 	users, err := api.GetUsers()
 	if err != nil {
 		return err
 	}
 
-	// Load the Team profile and extract our custom github Field ID
 	team, err := api.GetTeamProfile()
 	if err != nil {
 		return err
 	}
 	GHID := findGithubFieldID(team)
 
-	// Load each users' profile in a go routine
 	var wg sync.WaitGroup
 	wg.Add(len(users))
 	for _, u := range users {
@@ -140,8 +137,6 @@ func (n Notifier) BuildSlackUserMap() error {
 				return
 			}
 
-			// They have a non empty field with the same ID corresponding
-			// to our custom github field
 			if name := findGithubUsername(GHID, profile); name != "" {
 				userMap[name] = u.Name
 			}
