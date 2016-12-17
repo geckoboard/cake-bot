@@ -2,7 +2,7 @@
 
 Cake bot is your friendly neighbourhood code review assistant!
 
-At Geckoboard we do code review on just about every change that's deployed.
+At [Geckoboard](https://www.geckoboard.com) we do code review on just about every change that's deployed.
 This process isn't meant for making it easier to micro-manage other people's
 work. Instead it's meant to help ensure that at least several members of the
 team know how the platform is changing, and provides an opportunity for us to
