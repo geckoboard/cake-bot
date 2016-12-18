@@ -148,7 +148,7 @@ func main() {
 
 		httpServer := http.Server{
 			Addr:    fmt.Sprintf(":%d", c.Port),
-			Handler: bugsnag.Handler(NewServer()),
+			Handler: bugsnag.Handler(NewServer(nil)),
 		}
 
 		httpServer.ListenAndServe()
