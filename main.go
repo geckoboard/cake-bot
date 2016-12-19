@@ -59,7 +59,7 @@ func main() {
 	for k, _ := range required {
 		val := os.Getenv(k)
 		if val == "" {
-			logger.Error("msg", val+" not specified")
+			logger.Error("msg", k+" not specified")
 			os.Exit(1)
 		}
 		required[k] = val
