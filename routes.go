@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/bugsnag/bugsnag-go"
@@ -21,7 +20,6 @@ func NewServer(notifier NotifyPullRequestReviewStatus) http.Handler {
 	r := httprouter.New()
 	s := server{notifier}
 	r.GET("/", s.root)
-	r.GET("/ping", s.ping)
 	r.POST("/github", s.githubWebhook)
 	return r
 }
@@ -33,10 +31,6 @@ type server struct {
 func (s server) root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	w.Header().Add("Location", "https://github.com/geckoboard/cake-bot")
 	w.WriteHeader(302)
-}
-
-func (s server) ping(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
-	fmt.Println(w, "ok")
 }
 
 func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
