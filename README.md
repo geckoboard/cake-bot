@@ -8,20 +8,48 @@ work. Instead it's meant to help ensure that at least several members of the
 team know how the platform is changing, and provides an opportunity for us to
 help each other see problems from a different perspective.
 
-Over time we've picked up a number of conventions for managing the code review
-process:
+[This article](http://glen.nu/ramblings/oncodereview.php) goes into a
+lot of detail about a style of code review that's very close to what we
+use at Geckoboard.
 
-* When an engineer is happy with their changes and wants to get them reviewed,
-  they create a pull request and nominate someone in the team to review it.
-* The reviewer can go through the changes, asking questions and offering suggestions.
-* Sometimes the reviewer may want to make suggestions that they may improve the changes,
-  but shouldn't prevent the changes from being merged if the author doesn't want to do
-  them. Reviewers can annotate these changes with the :surfer: emoji.
-* When a reviewer is happy with the changes they can approve the pull request by commenting
-  with a :cake: emoji, at which point the author can merge the pull request into master.
+Cake bot listens for submitted code review webhook pings from Github and
+pings the author of the PR in slack. Cake bot can use information in the
+slack team directory to work out which slack users match up with which
+Github users. Create a profile field in your slack team called `github`
+and ask users to enter their Github username in it.
 
-Sometimes you want to create a pull request for your changes before they're ready to be
-merged into master (e.g. to collect feedback prior to code-review). If you put `WIP:`
-at the beginning of the pull request title that helps indicate to other engineers that
-they don't need to look at the pull request just yet. When you're ready to get the
-changes reviewed remove the `WIP:` tag from the issue title.
+## Configuration
+
+At a minimum you will need to specify these environment variables:
+
+- `GITHUB_ACCESS_TOKEN` A personal access token of a user that has write
+  access to your repos. We recommend creating a separate "bot user" for
+  this.
+- `SLACK_TOKEN` An API key that can scan your slack's team directory
+- `SLACK_HOOK` The URL of an incoming slack hook that can post messages
+  to a room in your slack team.
+
+During development you can set these variables in a `.env` file in the
+current working directory. Cake bot will set these as environment
+variables.
+
+## Testing
+
+```console
+$ make test
+```
+
+You can also send some example webhooks to the server during development:
+
+```console
+$ cat example-webhooks/pull_request_review_approved.json | curl http://localhost:8090 \
+  -X POST \
+  -H "X-Github-Event: pull_request_review" \
+  -d @-
+```
+
+## Running
+
+```console
+$ make run
+```
