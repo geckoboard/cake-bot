@@ -1,19 +1,20 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
+	"github.com/google/go-github/github"
 	"github.com/julienschmidt/httprouter"
-	"golang.org/x/net/context"
 )
 
 type NotifyPullRequestReviewStatus interface {
-	Approved([]PullRequestReview) error
-	ChangesRequested([]PullRequestReview) error
+	Approved(context.Context, github.PullRequest, PullRequestReview) error
+	ChangesRequested(context.Context, github.PullRequest, PullRequestReview) error
 }
 
 func NewServer(notifier NotifyPullRequestReviewStatus) http.Handler {
@@ -76,9 +77,9 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 	c = ctx.WithLogger(c, payload.enhanceLogger(ctx.Logger(c)))
 
 	if payload.Review.IsApproved() {
-		s.notifier.Approved([]PullRequestReview{*payload.Review})
+		s.notifier.Approved(c, *payload.PullRequest, *payload.Review)
 	} else {
-		s.notifier.ChangesRequested([]PullRequestReview{*payload.Review})
+		s.notifier.ChangesRequested(c, *payload.PullRequest, *payload.Review)
 	}
 
 	ctx.Logger(c).Info("at", "pull_request_updated")

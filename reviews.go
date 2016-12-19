@@ -1,6 +1,10 @@
 package main
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/google/go-github/github"
+)
 
 type ReviewState string
 
@@ -8,11 +12,6 @@ var (
 	APPROVED          ReviewState = "APPROVED"
 	CHANGES_REQUESTED ReviewState = "CHANGE_REQUESTED"
 )
-
-type reviewAuthor struct {
-	ID    int
-	Login string
-}
 
 type links map[string]struct {
 	HREF string
@@ -29,14 +28,18 @@ func (lm links) URLByRel(rel string) string {
 }
 
 type PullRequestReview struct {
-	ID     int          `json:"id"`
-	Author reviewAuthor `json:"user"`
-	State  ReviewState  `json:"state"`
-	Links  links        `json:"_links"`
+	ID    int         `json:"id"`
+	User  github.User `json:"user"`
+	State ReviewState `json:"state"`
+	Links links       `json:"_links"`
 }
 
 func (p PullRequestReview) IsApproved() bool {
 	// In the GH PR reviews beta webhooks use lowercase constants,
 	// but the API uses uppercase constants
 	return ReviewState(strings.ToUpper(string(p.State))) == APPROVED
+}
+
+func (p PullRequestReview) URL() string {
+	return p.Links.URLByRel("html")
 }

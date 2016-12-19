@@ -1,30 +1,33 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/geckoboard/cake-bot/log"
+	"github.com/google/go-github/github"
 )
 
 type notification struct {
-	action  ReviewState
-	reviews []PullRequestReview
+	action ReviewState
+	pr     github.PullRequest
+	review PullRequestReview
 }
 
 type fakeNotifier struct {
 	notifications []notification
 }
 
-func (f *fakeNotifier) Approved(reviews []PullRequestReview) error {
-	f.notifications = append(f.notifications, notification{APPROVED, reviews})
+func (f *fakeNotifier) Approved(_ context.Context, pr github.PullRequest, review PullRequestReview) error {
+	f.notifications = append(f.notifications, notification{APPROVED, pr, review})
 	return nil
 }
 
-func (f *fakeNotifier) ChangesRequested(reviews []PullRequestReview) error {
-	f.notifications = append(f.notifications, notification{CHANGES_REQUESTED, reviews})
+func (f *fakeNotifier) ChangesRequested(_ context.Context, pr github.PullRequest, review PullRequestReview) error {
+	f.notifications = append(f.notifications, notification{CHANGES_REQUESTED, pr, review})
 	return nil
 }
 
@@ -65,8 +68,12 @@ func TestHandleReviewRequiresChanges(t *testing.T) {
 		t.Fatalf("expected notification to be CHANGES_REQUESTED, got: %q", outcome.notifications[0])
 	}
 
-	if len(outcome.notifications[0].reviews) != 1 || outcome.notifications[0].reviews[0].ID != 13449121 {
-		t.Fatalf("unexpected review passed to notifier: %q", outcome.notifications[0].reviews)
+	if *outcome.notifications[0].pr.Number != 12 {
+		t.Fatalf("expected PR number %d, got: %q", 12, *outcome.notifications[0].pr.Number)
+	}
+
+	if outcome.notifications[0].review.ID != 13449121 {
+		t.Fatalf("unexpected review passed to notifier: %q", outcome.notifications[0].review)
 	}
 }
 
@@ -107,8 +114,12 @@ func TestHandleReviewApproved(t *testing.T) {
 		t.Fatalf("expected notification to be APPROVED, got: %q", outcome.notifications[0])
 	}
 
-	if len(outcome.notifications[0].reviews) != 1 || outcome.notifications[0].reviews[0].ID != 13449164 {
-		t.Fatalf("unexpected review passed to notifier: %q", outcome.notifications[0].reviews)
+	if *outcome.notifications[0].pr.Number != 12 {
+		t.Fatalf("expected PR number %d, got: %q", 12, *outcome.notifications[0].pr.Number)
+	}
+
+	if outcome.notifications[0].review.ID != 13449164 {
+		t.Fatalf("unexpected review passed to notifier: %q", outcome.notifications[0].review)
 	}
 }
 

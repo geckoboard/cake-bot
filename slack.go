@@ -3,12 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"sync"
 
-	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/geckoboard/cake-bot/slack"
 	"github.com/google/go-github/github"
@@ -60,37 +58,47 @@ func NewNotifier(url, token string) *Notifier {
 	}
 }
 
-func (n Notifier) PingUser(c context.Context, r ReviewRequest) {
-	l := ctx.Logger(c).With("at", "slack.ping-user")
-
-	user := GuessSlackUsername(r.issue.User)
-	if user == "" {
-		l.Error("msg", "user not found")
-		return
-	}
+func (n Notifier) Approved(pr github.PullRequest, review PullRequestReview) error {
+	user := GuessSlackUsername(pr.User)
 
 	e := CakeEvent{
 		Channel:   "#devs",
 		Username:  "cake-bot",
-		Text:      "@" + user + " you have received a :cake: for " + r.URL(),
+		Text:      "@" + user + " you have received a :cake: for " + review.URL(),
 		IconEmoji: ":sheep:",
 		Parse:     "full",
 	}
 
-	l = l.With("slack.user", user, "slack.channel", e.Channel)
+	return n.sendMessage(context.TODO(), e)
+}
+
+func (n Notifier) ChangesRequested(pr github.PullRequest, review PullRequestReview) error {
+	user := GuessSlackUsername(pr.User)
+
+	e := CakeEvent{
+		Channel:   "#devs",
+		Username:  "cake-bot",
+		Text:      "@" + user + " you have received some feedback on this PR " + review.URL(),
+		IconEmoji: ":sheep:",
+		Parse:     "full",
+	}
+
+	return n.sendMessage(context.TODO(), e)
+}
+
+func (n Notifier) sendMessage(c context.Context, e CakeEvent) error {
+	l := ctx.Logger(c).With("at", "slack.ping-user")
 
 	payload, err := json.Marshal(e)
 	if err != nil {
 		l.Error("msg", "unable to encode cake event", "err", err)
-		bugsnag.Notify(err)
-		return
+		return err
 	}
 
 	req, err := http.NewRequest("POST", n.Webhook, bytes.NewBuffer(payload))
 	if err != nil {
 		l.Error("msg", "unable to create request", "err", err)
-		bugsnag.Notify(err)
-		return
+		return err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -98,19 +106,17 @@ func (n Notifier) PingUser(c context.Context, r ReviewRequest) {
 	resp, err := slackHook.Do(req)
 	if err != nil {
 		l.Error("msg", "unable to create request", "err", err)
-		bugsnag.Notify(err)
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		l.Error("msg", "unexpected response status", "resp.Status", resp.Status)
-		bugsnag.Notify(fmt.Errorf("unexpected response code %d, expected %d", resp.StatusCode, http.StatusOK))
-		return
+		return err
 	}
 
 	l.Info("msg", "ping successful")
-	return
+	return nil
 }
 
 func (n Notifier) BuildSlackUserMap() error {
