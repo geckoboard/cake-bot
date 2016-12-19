@@ -82,7 +82,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	notifier := NewNotifier(users, required["SLACK_HOOK"], required["SLACK_TOKEN"])
+	notifier := NewNotifier(users, required["SLACK_HOOK"])
 
 	httpServer := http.Server{
 		Addr:    fmt.Sprintf(":%d", c.Port),

@@ -15,7 +15,6 @@ var slackHook = &http.Client{}
 type Notifier struct {
 	directory SlackUserDirectory
 	Webhook   string
-	Token     string
 }
 
 type CakeEvent struct {
@@ -26,11 +25,10 @@ type CakeEvent struct {
 	Parse     string `json:"parse"`
 }
 
-func NewNotifier(d SlackUserDirectory, url, token string) *Notifier {
+func NewNotifier(d SlackUserDirectory, url string) *Notifier {
 	return &Notifier{
 		directory: d,
 		Webhook:   url,
-		Token:     token,
 	}
 }
 
