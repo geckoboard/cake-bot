@@ -10,6 +10,7 @@ import (
 	"github.com/geckoboard/cake-bot/log"
 	"github.com/geckoboard/cake-bot/slack"
 	github "github.com/google/go-github/github"
+	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
 )
 
@@ -38,38 +39,42 @@ func (t *tokenSource) Token() (*oauth2.Token, error) {
 func main() {
 	logger = log.New()
 
-	var c Config
-
-	flag.IntVar(&c.Port, "port", 0, "port to run http server on, if not set server does not run")
-	flag.IntVar(&c.BulkSyncInterval, "bulk-sync-interval", 30, "when running as a http server run a bulk sync every X seconds")
-	flag.StringVar(&c.GithubOrg, "github-org", "geckoboard", "the github org to manage issues for")
-	flag.StringVar(&c.SlackWebhook, "slack-hook", "", "Slack webhook")
-	flag.Parse()
-
-	token := os.Getenv("GITHUB_ACCESS_TOKEN")
-
-	if token == "" {
-		logger.Error("msg", "GITHUB_ACCESS_TOKEN not specified")
+	err := godotenv.Load()
+	if err != nil {
+		logger.Error("Error loading .env file")
 		os.Exit(1)
 	}
 
-	slackToken := os.Getenv("SLACK_TOKEN")
+	var c Config
 
-	if slackToken == "" {
-		logger.Error("msg", "SLACK_TOKEN not specified")
-		os.Exit(1)
+	flag.IntVar(&c.Port, "port", 8090, "port to run http server on, if not set server does not run")
+	flag.Parse()
+
+	required := map[string]string{
+		"GITHUB_ACCESS_TOKEN": "",
+		"SLACK_TOKEN":         "",
+		"SLACK_HOOK":          "",
+	}
+
+	for k, _ := range required {
+		val := os.Getenv(k)
+		if val == "" {
+			logger.Error("msg", val+" not specified")
+			os.Exit(1)
+		}
+		required[k] = val
 	}
 
 	gh := github.NewClient(
 		oauth2.NewClient(
 			oauth2.NoContext,
 			&tokenSource{
-				&oauth2.Token{AccessToken: token},
+				&oauth2.Token{AccessToken: required["GITHUB_ACCESS_TOKEN"]},
 			},
 		),
 	)
 
-	sl := slack.New(slackToken)
+	sl := slack.New(required["SLACK_TOKEN"])
 
 	users := NewSlackUserDirectory(gh, sl)
 	if err := users.ScanSlackTeam(); err != nil {
@@ -77,7 +82,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	notifier := NewNotifier(users, c.SlackWebhook, slackToken)
+	notifier := NewNotifier(users, required["SLACK_HOOK"], required["SLACK_TOKEN"])
 
 	httpServer := http.Server{
 		Addr:    fmt.Sprintf(":%d", c.Port),
