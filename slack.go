@@ -2,45 +2,20 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
-	"strings"
-	"sync"
 
 	"github.com/geckoboard/cake-bot/ctx"
-	"github.com/geckoboard/cake-bot/slack"
 	"github.com/google/go-github/github"
-	"golang.org/x/net/context"
 )
 
 var slackHook = &http.Client{}
 
 type Notifier struct {
-	Webhook string
-	Token   string
-}
-
-var userMap = map[string]string{}
-
-func GuessSlackUsername(user *github.User) string {
-	specialUser := userMap[strings.ToLower(*user.Login)]
-	if specialUser != "" {
-		return specialUser
-	}
-
-	info, _, err := gh.Users.Get(*user.Login)
-	if err != nil {
-		return ""
-	}
-
-	if info.Name != nil {
-		name := strings.SplitN(*info.Name, " ", 2)
-		if len(name) > 0 {
-			return strings.ToLower(name[0])
-		}
-	}
-
-	return ""
+	directory SlackUserDirectory
+	Webhook   string
+	Token     string
 }
 
 type CakeEvent struct {
@@ -51,15 +26,16 @@ type CakeEvent struct {
 	Parse     string `json:"parse"`
 }
 
-func NewNotifier(url, token string) *Notifier {
+func NewNotifier(d SlackUserDirectory, url, token string) *Notifier {
 	return &Notifier{
-		Webhook: url,
-		Token:   token,
+		directory: d,
+		Webhook:   url,
+		Token:     token,
 	}
 }
 
-func (n Notifier) Approved(pr github.PullRequest, review PullRequestReview) error {
-	user := GuessSlackUsername(pr.User)
+func (n Notifier) Approved(c context.Context, pr github.PullRequest, review PullRequestReview) error {
+	user := n.directory.FindUserByGithubUser(pr.User)
 
 	e := CakeEvent{
 		Channel:   "#devs",
@@ -69,11 +45,11 @@ func (n Notifier) Approved(pr github.PullRequest, review PullRequestReview) erro
 		Parse:     "full",
 	}
 
-	return n.sendMessage(context.TODO(), e)
+	return n.sendMessage(c, e)
 }
 
-func (n Notifier) ChangesRequested(pr github.PullRequest, review PullRequestReview) error {
-	user := GuessSlackUsername(pr.User)
+func (n Notifier) ChangesRequested(c context.Context, pr github.PullRequest, review PullRequestReview) error {
+	user := n.directory.FindUserByGithubUser(pr.User)
 
 	e := CakeEvent{
 		Channel:   "#devs",
@@ -83,7 +59,7 @@ func (n Notifier) ChangesRequested(pr github.PullRequest, review PullRequestRevi
 		Parse:     "full",
 	}
 
-	return n.sendMessage(context.TODO(), e)
+	return n.sendMessage(c, e)
 }
 
 func (n Notifier) sendMessage(c context.Context, e CakeEvent) error {
@@ -117,59 +93,4 @@ func (n Notifier) sendMessage(c context.Context, e CakeEvent) error {
 
 	l.Info("msg", "ping successful")
 	return nil
-}
-
-func (n Notifier) BuildSlackUserMap() error {
-	api := slack.New(n.Token)
-
-	users, err := api.GetUsers()
-	if err != nil {
-		return err
-	}
-
-	team, err := api.GetTeamProfile()
-	if err != nil {
-		return err
-	}
-	GHID := findGithubFieldID(team)
-
-	var wg sync.WaitGroup
-	wg.Add(len(users))
-	for _, u := range users {
-		go func(u slack.User) {
-			defer wg.Done()
-			profile, err := api.GetUserProfile(u.ID)
-			if err != nil {
-				return
-			}
-
-			if name := findGithubUsername(GHID, profile); name != "" {
-				userMap[name] = u.Name
-			}
-		}(u)
-	}
-
-	wg.Wait()
-
-	return nil
-}
-
-func findGithubFieldID(team *slack.TeamProfile) string {
-	for _, f := range team.Fields {
-		if strings.Contains(strings.ToLower(f.Label), "github") {
-			return f.ID
-		}
-	}
-
-	return ""
-}
-
-func findGithubUsername(fieldId string, profile *slack.UserProfile) string {
-	for id, field := range profile.Fields {
-		if id == fieldId {
-			return strings.TrimSpace(strings.ToLower(field.Value))
-		}
-	}
-
-	return ""
 }

@@ -8,6 +8,7 @@ import (
 
 	bugsnag "github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/log"
+	"github.com/geckoboard/cake-bot/slack"
 	github "github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 )
@@ -15,8 +16,6 @@ import (
 var (
 	GithubApiKey string
 	logger       log.LeveledLogger
-	gh           *github.Client
-	notifier     *Notifier
 )
 
 type Config struct {
@@ -61,23 +60,28 @@ func main() {
 		os.Exit(1)
 	}
 
-	notifier = NewNotifier(c.SlackWebhook, slackToken)
-	if err := notifier.BuildSlackUserMap(); err != nil {
+	gh := github.NewClient(
+		oauth2.NewClient(
+			oauth2.NoContext,
+			&tokenSource{
+				&oauth2.Token{AccessToken: token},
+			},
+		),
+	)
+
+	sl := slack.New(slackToken)
+
+	users := NewSlackUserDirectory(gh, sl)
+	if err := users.ScanSlackTeam(); err != nil {
 		logger.Error("msg", fmt.Sprintf("building Slack user map raised an error: %s", err.Error()))
 		os.Exit(1)
 	}
 
-	ts := &tokenSource{
-		&oauth2.Token{AccessToken: token},
-	}
-
-	tc := oauth2.NewClient(oauth2.NoContext, ts)
-
-	gh = github.NewClient(tc)
+	notifier := NewNotifier(users, c.SlackWebhook, slackToken)
 
 	httpServer := http.Server{
 		Addr:    fmt.Sprintf(":%d", c.Port),
-		Handler: bugsnag.Handler(NewServer(nil)),
+		Handler: bugsnag.Handler(NewServer(notifier)),
 	}
 
 	httpServer.ListenAndServe()
