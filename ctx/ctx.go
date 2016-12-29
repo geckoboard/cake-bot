@@ -1,8 +1,9 @@
 package ctx
 
 import (
+	"context"
+
 	"github.com/geckoboard/cake-bot/log"
-	"golang.org/x/net/context"
 )
 
 type key int
