@@ -41,7 +41,7 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		logger.Error("Error loading .env file")
+		logger.Error("msg", "Error loading .env file")
 	}
 
 	var c Config
