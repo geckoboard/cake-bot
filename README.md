@@ -25,7 +25,7 @@ At a minimum you will need to specify these environment variables:
 - `GITHUB_ACCESS_TOKEN` A personal access token of a user that has write
   access to your repos. We recommend creating a separate "bot user" for
   this.
-- `SLACK_TOKEN` An API key that can scan your slack's team directory
+- `SLACK_TOKEN` An API key that can scan your slack's team directory.
 - `SLACK_HOOK` The URL of an incoming slack hook that can post messages
   to a room in your slack team.
 
