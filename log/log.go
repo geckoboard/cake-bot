@@ -40,29 +40,29 @@ type levels struct {
 }
 
 func (l levels) Debug(keyvals ...interface{}) {
-	if err := l.kit.Debug(keyvals...); err != nil {
+	if err := l.kit.Debug().Log(keyvals...); err != nil {
 		panic(err)
 	}
 }
 
 func (l levels) Info(keyvals ...interface{}) {
-	if err := l.kit.Info(keyvals...); err != nil {
+	if err := l.kit.Info().Log(keyvals...); err != nil {
 		panic(err)
 	}
 }
 
 func (l levels) Error(keyvals ...interface{}) {
-	if err := l.kit.Error(keyvals...); err != nil {
+	if err := l.kit.Error().Log(keyvals...); err != nil {
 		panic(err)
 	}
 }
 func (l levels) Warn(keyvals ...interface{}) {
-	if err := l.kit.Warn(keyvals...); err != nil {
+	if err := l.kit.Warn().Log(keyvals...); err != nil {
 		panic(err)
 	}
 }
 func (l levels) Crit(keyvals ...interface{}) {
-	if err := l.kit.Crit(keyvals...); err != nil {
+	if err := l.kit.Crit().Log(keyvals...); err != nil {
 		panic(err)
 	}
 }

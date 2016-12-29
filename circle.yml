@@ -1,0 +1,22 @@
+machine:
+  environment:
+    GOROOT: ""
+    PATH: "/usr/local/go/bin:/usr/local/go_workspace/bin:~/.go_workspace/bin:${PATH}"
+    GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
+    # We put the project in `.go_project` rather than `.go_workspace`, as the latter
+    # is cached between builds, which cause problems
+    REPO_GOPATH: $HOME/.go_project/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+    GOLANG_VERSION: 1.7.4
+  post:
+    - sudo rm -rf /usr/local/go
+    - if [ ! -e ".go_workspace/go${GOLANG_VERSION}.linux-amd64.tar.gz" ]; then curl -o ".go_workspace/go${GOLANG_VERSION}.linux-amd64.tar.gz" "https://storage.googleapis.com/golang/go${GOLANG_VERSION}.linux-amd64.tar.gz"; fi
+    - sudo tar -C /usr/local -xzf ".go_workspace/go${GOLANG_VERSION}.linux-amd64.tar.gz"
+    - go version; go env
+
+dependencies:
+  override:
+    - mkdir -p $(dirname $REPO_GOPATH)
+    - ln -fs $HOME/$CIRCLE_PROJECT_REPONAME $REPO_GOPATH
+test:
+  override:
+    - cd $REPO_GOPATH && go test

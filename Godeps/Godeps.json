@@ -1,69 +1,83 @@
 {
 	"ImportPath": "github.com/geckoboard/cake-bot",
-	"GoVersion": "go1.4.1",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v75",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/bugsnag/bugsnag-go",
-			"Comment": "v1.0.5-2-g72ff9e1",
-			"Rev": "72ff9e15e8c5ae52e8db1dd5dd1f77a9f2f1a895"
+			"Comment": "v1.1.1-4-gde94149",
+			"Rev": "de94149dafe8e7c9f97dc0fcd989c667e6b3b33a"
 		},
 		{
-			"ImportPath": "github.com/bugsnag/osext",
-			"Rev": "0dd3f918b21bec95ace9dc86c7e70266cfc5c702"
+			"ImportPath": "github.com/bugsnag/bugsnag-go/errors",
+			"Comment": "v1.1.1-4-gde94149",
+			"Rev": "de94149dafe8e7c9f97dc0fcd989c667e6b3b33a"
 		},
 		{
 			"ImportPath": "github.com/bugsnag/panicwrap",
-			"Rev": "e5f9854865b9778a45169fc249e99e338d4d6f27"
-		},
-		{
-			"ImportPath": "github.com/dchest/uniuri",
-			"Rev": "396b73a566d0993675357e6648bb98587a6162b4"
-		},
-		{
-			"ImportPath": "github.com/geckoboard/goutils/router",
-			"Rev": "c0fb2505de0275ec086830e538a016e61da2b70c"
+			"Comment": "1.1.0-4-gaa7703c",
+			"Rev": "aa7703c9414b36d4e9b2e42e6c704d0bfae7db64"
 		},
 		{
 			"ImportPath": "github.com/go-kit/kit/log",
-			"Rev": "3978daeead5256ef70951fa257a7949f56286177"
+			"Comment": "v0.3.0-38-g905b602",
+			"Rev": "905b60253dbac4a14625ce52217ede00d3a3aca7"
+		},
+		{
+			"ImportPath": "github.com/go-kit/kit/log/levels",
+			"Comment": "v0.3.0-38-g905b602",
+			"Rev": "905b60253dbac4a14625ce52217ede00d3a3aca7"
+		},
+		{
+			"ImportPath": "github.com/go-logfmt/logfmt",
+			"Comment": "v0.3.0",
+			"Rev": "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
+		},
+		{
+			"ImportPath": "github.com/go-stack/stack",
+			"Comment": "v1.5.2",
+			"Rev": "100eb0c0a9c5b306ca2fb4f165df21d80ada4b82"
 		},
 		{
 			"ImportPath": "github.com/google/go-github/github",
-			"Rev": "6f7d3a5ad94d7a8c1cf7cb93d1364d0369ea8bbd"
+			"Rev": "4b026b323c199177ad865434c0266e8bcd5ec83d"
 		},
 		{
 			"ImportPath": "github.com/google/go-querystring/query",
-			"Rev": "547ef5ac979778feb2f760cdb5f4eae1a2207b86"
+			"Rev": "9235644dd9e52eeae6fa48efd539fdc351a0af53"
+		},
+		{
+			"ImportPath": "github.com/joho/godotenv",
+			"Comment": "v1-13-g726cc8b",
+			"Rev": "726cc8b906e3d31c70a9671c90a13716a8d3f50d"
 		},
 		{
 			"ImportPath": "github.com/julienschmidt/httprouter",
-			"Rev": "8c199fb6259ffc1af525cc3ad52ee60ba8359669"
+			"Comment": "v1.1-40-g5dd70ee",
+			"Rev": "5dd70ee059943e81987a817fa1a755b11dd119c1"
 		},
 		{
-			"ImportPath": "github.com/mattn/go-colorable",
-			"Rev": "d67e0b7d1797975196499f79bcc322c08b9f218b"
+			"ImportPath": "github.com/kardianos/osext",
+			"Rev": "c2c54e542fb797ad986b31721e1baedf214ca413"
+		},
+		{
+			"ImportPath": "github.com/kr/logfmt",
+			"Rev": "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "72bfdce4720b8edba5098bb04136d3d6afa992b3"
+			"Rev": "45e771701b814666a7eb299e6c7a57d0b1799e91"
 		},
 		{
 			"ImportPath": "golang.org/x/oauth2",
-			"Rev": "f98d0160877ab4712b906626425ed8b0b320907c"
+			"Rev": "314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd"
 		},
 		{
-			"ImportPath": "gopkg.in/inconshreveable/log15.v2",
-			"Comment": "v2.10",
-			"Rev": "dc7890abeaadcb6a79a9a5ee30bc1897bbf97713"
-		},
-		{
-			"ImportPath": "gopkg.in/logfmt.v0",
-			"Rev": "c50dc9aa845e681529d8e49d3dc11ec0195aacac"
-		},
-		{
-			"ImportPath": "gopkg.in/stack.v1",
-			"Comment": "v1.4.0",
-			"Rev": "0585967eab0016c8e4e2d55ac20585b469574cec"
+			"ImportPath": "golang.org/x/oauth2/internal",
+			"Rev": "314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd"
 		}
 	]
 }
