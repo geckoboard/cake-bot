@@ -15,4 +15,8 @@ machine:
 
 dependencies:
   override:
-    - echo nope
+    - mkdir -p $(dirname $REPO_GOPATH)
+    - ln -fs $HOME/$CIRCLE_PROJECT_REPONAME $REPO_GOPATH
+test:
+  override:
+    - cd $REPO_GOPATH && go test
