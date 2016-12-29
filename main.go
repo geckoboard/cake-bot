@@ -42,7 +42,6 @@ func main() {
 	err := godotenv.Load()
 	if err != nil {
 		logger.Error("Error loading .env file")
-		os.Exit(1)
 	}
 
 	var c Config
