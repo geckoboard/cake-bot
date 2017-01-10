@@ -72,7 +72,7 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 
 	if payload.Review.IsApproved() {
 		s.notifier.Approved(c, *payload.PullRequest, *payload.Review)
-	} else {
+	} else if *payload.Review.User.ID != *payload.PullRequest.User.ID {
 		s.notifier.ChangesRequested(c, *payload.PullRequest, *payload.Review)
 	}
 
