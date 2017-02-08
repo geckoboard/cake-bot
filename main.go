@@ -75,6 +75,7 @@ func main() {
 
 	sl := slack.New(required["SLACK_TOKEN"])
 
+	fmt.Println("scanning slack directory")
 	users := NewSlackUserDirectory(gh, sl)
 	if err := users.ScanSlackTeam(); err != nil {
 		logger.Error("msg", fmt.Sprintf("building Slack user map raised an error: %s", err.Error()))
@@ -88,6 +89,7 @@ func main() {
 		Handler: bugsnag.Handler(NewServer(notifier)),
 	}
 
+	fmt.Printf("Listening on port %d", c.Port)
 	httpServer.ListenAndServe()
 }
 

@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/google/go-github/github"
 )
+
+const MAX_TITLE_LENGTH = 30
 
 var slackHook = &http.Client{}
 
@@ -22,7 +25,6 @@ type CakeEvent struct {
 	Username  string `json:"username"`
 	Text      string `json:"text"`
 	IconEmoji string `json:"icon_emoji"`
-	Parse     string `json:"parse"`
 }
 
 func NewNotifier(d SlackUserDirectory, url string) *Notifier {
@@ -32,29 +34,40 @@ func NewNotifier(d SlackUserDirectory, url string) *Notifier {
 	}
 }
 
-func (n Notifier) Approved(c context.Context, pr github.PullRequest, review PullRequestReview) error {
-	user := n.directory.FindUserByGithubUser(pr.User)
+func prLink(repo github.Repository, pr github.PullRequest, review PullRequestReview) string {
+	title := *pr.Title
+	if len(title) > MAX_TITLE_LENGTH {
+		title = fmt.Sprintf("%s...", title[0:MAX_TITLE_LENGTH])
+	}
 
+	return fmt.Sprintf("<%s|%s#%d> - %s", review.URL(), *repo.Name, *pr.Number, title)
+}
+
+func (n Notifier) Approved(c context.Context, repo github.Repository, pr github.PullRequest, review PullRequestReview) error {
 	e := CakeEvent{
-		Channel:   "#devs",
-		Username:  "cake-bot",
-		Text:      "@" + user + " you have received a :cake: for " + review.URL(),
+		Channel:  "#test",
+		Username: "cake-bot",
+		Text: fmt.Sprintf(
+			"%s you have received a :cake: for %s",
+			n.directory.BuildLinkToUser(pr.User),
+			prLink(repo, pr, review),
+		),
 		IconEmoji: ":sheep:",
-		Parse:     "full",
 	}
 
 	return n.sendMessage(c, e)
 }
 
-func (n Notifier) ChangesRequested(c context.Context, pr github.PullRequest, review PullRequestReview) error {
-	user := n.directory.FindUserByGithubUser(pr.User)
-
+func (n Notifier) ChangesRequested(c context.Context, repo github.Repository, pr github.PullRequest, review PullRequestReview) error {
 	e := CakeEvent{
-		Channel:   "#devs",
-		Username:  "cake-bot",
-		Text:      "@" + user + " you have received some feedback on this PR " + review.URL(),
+		Channel:  "#test",
+		Username: "cake-bot",
+		Text: fmt.Sprintf(
+			"%s you have received some feedback on this PR: %s",
+			n.directory.BuildLinkToUser(pr.User),
+			prLink(repo, pr, review),
+		),
 		IconEmoji: ":sheep:",
-		Parse:     "full",
 	}
 
 	return n.sendMessage(c, e)

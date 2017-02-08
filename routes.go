@@ -12,8 +12,8 @@ import (
 )
 
 type NotifyPullRequestReviewStatus interface {
-	Approved(context.Context, github.PullRequest, PullRequestReview) error
-	ChangesRequested(context.Context, github.PullRequest, PullRequestReview) error
+	Approved(context.Context, github.Repository, github.PullRequest, PullRequestReview) error
+	ChangesRequested(context.Context, github.Repository, github.PullRequest, PullRequestReview) error
 }
 
 func NewServer(notifier NotifyPullRequestReviewStatus) http.Handler {
@@ -71,9 +71,9 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 	c = ctx.WithLogger(c, payload.enhanceLogger(ctx.Logger(c)))
 
 	if payload.Review.IsApproved() {
-		s.notifier.Approved(c, *payload.PullRequest, *payload.Review)
+		s.notifier.Approved(c, *payload.Repository, *payload.PullRequest, *payload.Review)
 	} else if *payload.Review.User.ID != *payload.PullRequest.User.ID {
-		s.notifier.ChangesRequested(c, *payload.PullRequest, *payload.Review)
+		s.notifier.ChangesRequested(c, *payload.Repository, *payload.PullRequest, *payload.Review)
 	}
 
 	ctx.Logger(c).Info("at", "pull_request_updated")

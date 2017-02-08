@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
@@ -12,7 +13,7 @@ func NewSlackUserDirectory(gh *github.Client, sl *slack.Client) SlackUserDirecto
 	return SlackUserDirectory{
 		gh,
 		sl,
-		map[string]string{},
+		map[string]slack.User{},
 	}
 }
 
@@ -20,18 +21,22 @@ type SlackUserDirectory struct {
 	githubClient *github.Client
 	slackClient  *slack.Client
 
-	directory map[string]string
+	directory map[string]slack.User
 }
 
-func (s *SlackUserDirectory) FindUserByGithubUser(user *github.User) string {
-	specialUser := s.directory[strings.ToLower(*user.Login)]
-	if specialUser != "" {
-		return specialUser
+func (s *SlackUserDirectory) BuildLinkToUser(g *github.User) string {
+	u, exists := s.directory[strings.ToLower(*g.Login)]
+
+	if exists {
+		return fmt.Sprintf("<@%s>", u.ID)
 	}
+
+	// We don't know the user's slack handle, let's fallback to just including
+	// their github name
 
 	// Not all API responses/webhook payloads embed the user's name,
 	// so we need to look the user up separately
-	info, _, err := s.githubClient.Users.Get(*user.Login)
+	info, _, err := s.githubClient.Users.Get(*g.Login)
 	if err != nil {
 		return ""
 	}
@@ -43,7 +48,7 @@ func (s *SlackUserDirectory) FindUserByGithubUser(user *github.User) string {
 		}
 	}
 
-	return *user.Login
+	return *g.Login
 }
 
 func (s *SlackUserDirectory) ScanSlackTeam() error {
@@ -61,7 +66,7 @@ func (s *SlackUserDirectory) ScanSlackTeam() error {
 	var wg sync.WaitGroup
 	var l sync.RWMutex
 
-	d := map[string]string{}
+	d := map[string]slack.User{}
 
 	wg.Add(len(users))
 	for _, u := range users {
@@ -74,7 +79,7 @@ func (s *SlackUserDirectory) ScanSlackTeam() error {
 
 			if name := findGithubUsername(GHID, profile); name != "" {
 				l.Lock()
-				d[name] = u.Name
+				d[name] = u
 				l.Unlock()
 			}
 		}(u)
