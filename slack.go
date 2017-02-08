@@ -11,7 +11,7 @@ import (
 	"github.com/google/go-github/github"
 )
 
-const MAX_TITLE_LENGTH = 30
+const MAX_TITLE_LENGTH = 35
 
 var slackHook = &http.Client{}
 
@@ -63,7 +63,7 @@ func (n Notifier) ChangesRequested(c context.Context, repo github.Repository, pr
 		Channel:  "#devs",
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
-			"%s you have received some feedback on this PR: %s",
+			"%s you have received some feedback on %s",
 			n.directory.BuildLinkToUser(pr.User),
 			prLink(repo, pr, review),
 		),
