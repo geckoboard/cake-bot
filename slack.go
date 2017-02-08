@@ -45,7 +45,7 @@ func prLink(repo github.Repository, pr github.PullRequest, review PullRequestRev
 
 func (n Notifier) Approved(c context.Context, repo github.Repository, pr github.PullRequest, review PullRequestReview) error {
 	e := CakeEvent{
-		Channel:  "#test",
+		Channel:  "#devs",
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
 			"%s you have received a :cake: for %s",
@@ -60,7 +60,7 @@ func (n Notifier) Approved(c context.Context, repo github.Repository, pr github.
 
 func (n Notifier) ChangesRequested(c context.Context, repo github.Repository, pr github.PullRequest, review PullRequestReview) error {
 	e := CakeEvent{
-		Channel:  "#test",
+		Channel:  "#devs",
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
 			"%s you have received some feedback on this PR: %s",
