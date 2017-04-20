@@ -34,21 +34,19 @@ func (s server) root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params
 }
 
 func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	c := ctx.WithLogger(
-		context.Background(),
-		logger.With(
-			"endpoint", "webhook",
-			"request_id", r.Header.Get("X-Request-ID"),
-		),
-	)
-
 	event := r.Header.Get("X-GitHub-Event")
 
+	l := logger.With(
+		"endpoint", "webhook",
+		"request_id", r.Header.Get("X-Request-ID"),
+		"github_event", event,
+	)
+	
 	switch event {
 	case "pull_request_review":
 		// handle request
 	default:
-		ctx.Logger(c).Info("at", "ignore_event", "github_event", event)
+		l.Info("at", "ignore_event")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -57,18 +55,26 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		bugsnag.Notify(err)
-		ctx.Logger(c).Error("at", "unmarshal_error", "err", err)
+		l.Error("at", "unmarshal_error", "err", err)
 		w.WriteHeader(501)
+		return
+	}
+	
+	l = payload.enhanceLogger(l)
+	
+	if payload.Action != "submitted" {
+		l.Info("at", "ignore_review_action")
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	if err := payload.checkPayload(); err != nil {
-		ctx.Logger(c).Error("at", "payload_error", "err", err)
+		l.Error("at", "payload_error", "err", err)
 		w.WriteHeader(501)
 		return
 	}
 
-	c = ctx.WithLogger(c, payload.enhanceLogger(ctx.Logger(c)))
+	c := ctx.WithLogger(context.Background(),l)
 
 	if payload.Review.IsApproved() {
 		s.notifier.Approved(c, *payload.Repository, *payload.PullRequest, *payload.Review)
@@ -76,6 +82,6 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 		s.notifier.ChangesRequested(c, *payload.Repository, *payload.PullRequest, *payload.Review)
 	}
 
-	ctx.Logger(c).Info("at", "pull_request_updated")
+	l.Info("at", "pull_request_updated")
 	w.WriteHeader(http.StatusOK)
 }
