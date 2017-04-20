@@ -39,6 +39,7 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 	l := logger.With(
 		"endpoint", "webhook",
 		"request_id", r.Header.Get("X-Request-ID"),
+		"github_delivery_id", r.Header.Get("X-GitHub-Delivery"),
 		"github_event", event,
 	)
 	
