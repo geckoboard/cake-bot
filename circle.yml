@@ -12,11 +12,10 @@ machine:
     - if [ ! -e ".go_workspace/go${GOLANG_VERSION}.linux-amd64.tar.gz" ]; then curl -o ".go_workspace/go${GOLANG_VERSION}.linux-amd64.tar.gz" "https://storage.googleapis.com/golang/go${GOLANG_VERSION}.linux-amd64.tar.gz"; fi
     - sudo tar -C /usr/local -xzf ".go_workspace/go${GOLANG_VERSION}.linux-amd64.tar.gz"
     - go version; go env
-
 dependencies:
   override:
     - mkdir -p $(dirname $REPO_GOPATH)
     - ln -fs $HOME/$CIRCLE_PROJECT_REPONAME $REPO_GOPATH
 test:
   override:
-    - cd $REPO_GOPATH && go test
+    - cd $REPO_GOPATH && make test-ci

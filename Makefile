@@ -1,12 +1,11 @@
 NAME = cake-bot
+TEST_PKGS?=$$(go list ./... | grep -v /vendor/)
 GIT_REF = $(shell git rev-parse --short HEAD)
-FPM_VERSION = 1.3.3
-DEB_S3_VERSION = 0.7.1
-AWS_CLI_VERSION = 1.7.3
+
 # This is needed as test-ci uses bash process substitution
 SHELL = /bin/bash
 
-.PHONY: all build clean import install-ci-dep package release run run-web test test-ci test-race update-deps
+.PHONY: all build clean install-ci-dep run run-web test test-ci test-race update-deps
 
 all: test
 
@@ -24,13 +23,13 @@ run-web: build
 	bin/$(NAME) -port 9098
 
 test:
-	go test -v ./...
+	go test -v $(TEST_PKGS)
 
-test-ci:
-	go test -v ./... -race | tee >(go-junit-report -package-name $(NAME) > $$CIRCLE_TEST_REPORTS/golang.xml); test $${PIPESTATUS[0]} -eq 0
+test-ci: install-ci-deps
+	go test -v $(TEST_PKGS) -race | tee >(go-junit-report -package-name $(NAME) > $$CIRCLE_TEST_REPORTS/golang.xml); test $${PIPESTATUS[0]} -eq 0
 
 test-race:
-	go test -v ./... -race
+	go test -v $(TEST_PKGS) -race
 
 update-deps:
 	go list -f '{{if not .Standard}}{{join .Deps "\n"}}{{end}}' ./... \
