@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/google/go-github/github"
+	"github.com/geckoboard/cake-bot/github"
 )
 
 type links map[string]struct {
@@ -21,8 +21,8 @@ func (lm links) URLByRel(rel string) string {
 }
 
 type PullRequestReview struct {
-	ID   int         `json:"id"`
-	User github.User `json:"user"`
+	ID   int          `json:"id"`
+	User *github.User `json:"user"`
 
 	// State can be either "approved" or "change_requested".
 	State string `json:"state"`

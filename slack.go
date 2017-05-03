@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/geckoboard/cake-bot/ctx"
-	"github.com/google/go-github/github"
+	"github.com/geckoboard/cake-bot/github"
 )
 
 const MAX_TITLE_LENGTH = 35
@@ -65,7 +65,7 @@ func (n Notifier) ChangesRequested(c context.Context, repo *github.Repository, p
 }
 
 func prLink(repo *github.Repository, pr *github.PullRequest, review *PullRequestReview) string {
-	title := *pr.Title
+	title := pr.Title
 	if len(title) > MAX_TITLE_LENGTH {
 		title = fmt.Sprintf("%s...", title[0:MAX_TITLE_LENGTH])
 	}

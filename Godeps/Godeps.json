@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/geckoboard/cake-bot",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v75",
+	"GodepVersion": "v79",
 	"Packages": [
 		"./..."
 	],
@@ -23,13 +23,13 @@
 		},
 		{
 			"ImportPath": "github.com/go-kit/kit/log",
-			"Comment": "v0.3.0-38-g905b602",
-			"Rev": "905b60253dbac4a14625ce52217ede00d3a3aca7"
+			"Comment": "v0.4.0-40-g0873e56",
+			"Rev": "0873e56b0faeae3a1d661b10d629135508ea5504"
 		},
 		{
-			"ImportPath": "github.com/go-kit/kit/log/levels",
-			"Comment": "v0.3.0-38-g905b602",
-			"Rev": "905b60253dbac4a14625ce52217ede00d3a3aca7"
+			"ImportPath": "github.com/go-kit/kit/log/deprecated_levels",
+			"Comment": "v0.4.0-40-g0873e56",
+			"Rev": "0873e56b0faeae3a1d661b10d629135508ea5504"
 		},
 		{
 			"ImportPath": "github.com/go-logfmt/logfmt",
@@ -42,22 +42,14 @@
 			"Rev": "100eb0c0a9c5b306ca2fb4f165df21d80ada4b82"
 		},
 		{
-			"ImportPath": "github.com/google/go-github/github",
-			"Rev": "4b026b323c199177ad865434c0266e8bcd5ec83d"
-		},
-		{
-			"ImportPath": "github.com/google/go-querystring/query",
-			"Rev": "9235644dd9e52eeae6fa48efd539fdc351a0af53"
-		},
-		{
 			"ImportPath": "github.com/joho/godotenv",
-			"Comment": "v1-13-g726cc8b",
-			"Rev": "726cc8b906e3d31c70a9671c90a13716a8d3f50d"
+			"Comment": "v1.1-12-g325433c",
+			"Rev": "325433c502d409f3c3dc820098fb0cfe38d98dc7"
 		},
 		{
 			"ImportPath": "github.com/julienschmidt/httprouter",
-			"Comment": "v1.1-40-g5dd70ee",
-			"Rev": "5dd70ee059943e81987a817fa1a755b11dd119c1"
+			"Comment": "v1.1-41-g8a45e95",
+			"Rev": "8a45e95fc75cb77048068a62daed98cc22fdac7c"
 		},
 		{
 			"ImportPath": "github.com/kardianos/osext",
@@ -66,18 +58,6 @@
 		{
 			"ImportPath": "github.com/kr/logfmt",
 			"Rev": "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
-		},
-		{
-			"ImportPath": "golang.org/x/net/context",
-			"Rev": "45e771701b814666a7eb299e6c7a57d0b1799e91"
-		},
-		{
-			"ImportPath": "golang.org/x/oauth2",
-			"Rev": "314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd"
-		},
-		{
-			"ImportPath": "golang.org/x/oauth2/internal",
-			"Rev": "314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd"
 		}
 	]
 }

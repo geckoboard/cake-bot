@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/geckoboard/cake-bot/github"
 	"github.com/geckoboard/cake-bot/log"
-	"github.com/google/go-github/github"
 )
 
 type notification struct {
@@ -69,8 +69,8 @@ func TestHandleReviewRequiresChanges(t *testing.T) {
 		t.Fatalf("expected notification to be changes_requested, got: %q", outcome.notifications[0].action)
 	}
 
-	if *outcome.notifications[0].pr.Number != 12 {
-		t.Fatalf("expected PR number %d, got: %q", 12, *outcome.notifications[0].pr.Number)
+	if outcome.notifications[0].pr.Number != 12 {
+		t.Fatalf("expected PR number %d, got: %q", 12, outcome.notifications[0].pr.Number)
 	}
 
 	if outcome.notifications[0].review.ID != 13449121 {
@@ -115,8 +115,8 @@ func TestHandleReviewApproved(t *testing.T) {
 		t.Fatalf("expected notification to be approved, got: %q", outcome.notifications[0].action)
 	}
 
-	if *outcome.notifications[0].pr.Number != 12 {
-		t.Fatalf("expected PR number %d, got: %d", 12, *outcome.notifications[0].pr.Number)
+	if outcome.notifications[0].pr.Number != 12 {
+		t.Fatalf("expected PR number %d, got: %d", 12, outcome.notifications[0].pr.Number)
 	}
 
 	if outcome.notifications[0].review.ID != 13449164 {

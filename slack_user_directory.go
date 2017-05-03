@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/geckoboard/cake-bot/github"
 	"github.com/geckoboard/cake-bot/slack"
-	"github.com/google/go-github/github"
 )
 
 func NewSlackUserDirectory(slackClient *slack.Client) SlackUserDirectory {
@@ -22,11 +22,11 @@ type SlackUserDirectory struct {
 }
 
 func (s *SlackUserDirectory) BuildLinkToUser(ghUser *github.User) string {
-	u, exists := s.directory[strings.ToLower(*ghUser.Login)]
+	u, exists := s.directory[strings.ToLower(ghUser.Login)]
 	if exists {
 		return fmt.Sprintf("<@%s>", u.ID)
 	}
-	return *ghUser.Login
+	return ghUser.Login
 }
 
 func (s *SlackUserDirectory) ScanSlackTeam() error {

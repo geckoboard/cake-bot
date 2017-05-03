@@ -3,8 +3,8 @@ package main
 import (
 	"errors"
 
+	"github.com/geckoboard/cake-bot/github"
 	"github.com/geckoboard/cake-bot/log"
-	"github.com/google/go-github/github"
 )
 
 type pullRequestReviewWebhook struct {
@@ -18,13 +18,13 @@ func (w *pullRequestReviewWebhook) EnhanceLogger(l log.LeveledLogger) log.Levele
 	l = l.With("action", w.Action)
 
 	if w.Repository != nil {
-		l = l.With("repo.name", *w.Repository.Name)
+		l = l.With("repo.name", w.Repository.Name)
 	}
 
 	if w.PullRequest != nil {
 		l = l.With(
-			"pr.number", *w.PullRequest.Number,
-			"pr.url", *w.PullRequest.HTMLURL,
+			"pr.number", w.PullRequest.Number,
+			"pr.url", w.PullRequest.HTMLURL,
 		)
 	}
 

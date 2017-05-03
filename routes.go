@@ -7,8 +7,8 @@ import (
 
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
+	"github.com/geckoboard/cake-bot/github"
 	"github.com/geckoboard/cake-bot/log"
-	"github.com/google/go-github/github"
 	"github.com/julienschmidt/httprouter"
 )
 

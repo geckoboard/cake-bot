@@ -4,7 +4,7 @@ import (
 	"os"
 
 	gklog "github.com/go-kit/kit/log"
-	gklevels "github.com/go-kit/kit/log/levels"
+	gklevels "github.com/go-kit/kit/log/deprecated_levels"
 )
 
 type LeveledLogger interface {
