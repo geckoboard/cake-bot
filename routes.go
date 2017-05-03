@@ -12,14 +12,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type NotifyPullRequestReviewStatus interface {
-	Approved(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
-	ChangesRequested(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
-}
-
-func NewServer(notifier NotifyPullRequestReviewStatus) http.Handler {
+func NewServer(notifier Notifier) http.Handler {
 	s := &Server{
-		notifier: notifier,
+		Notifier: notifier,
 	}
 
 	r := httprouter.New()
@@ -29,7 +24,7 @@ func NewServer(notifier NotifyPullRequestReviewStatus) http.Handler {
 }
 
 type Server struct {
-	notifier NotifyPullRequestReviewStatus
+	Notifier Notifier
 }
 
 func (s *Server) root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
@@ -48,15 +43,40 @@ func (s *Server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprou
 	)
 
 	switch event {
+	case github.PullRequestEvent:
+		s.handlePullRequestEvent(w, r, l)
 	case github.PullRequestReviewEvent:
-		s.handlePullRequestReview(w, r, l)
+		s.handlePullRequestReviewEvent(w, r, l)
 	default:
 		l.Info("at", "ignore_event")
 		w.WriteHeader(http.StatusOK)
 	}
 }
 
-func (s *Server) handlePullRequestReview(w http.ResponseWriter, r *http.Request, l log.LeveledLogger) {
+func (s *Server) handlePullRequestEvent(w http.ResponseWriter, r *http.Request, l log.LeveledLogger) {
+	var webhook github.PullRequestWebhook
+
+	if err := json.NewDecoder(r.Body).Decode(&webhook); err != nil {
+		bugsnag.Notify(err)
+		l.Error("at", "unmarshal_error", "err", err)
+		w.WriteHeader(http.StatusNotImplemented)
+		return
+	}
+
+	l = webhook.EnhanceLogger(l)
+
+	switch webhook.Action {
+	case "review_requested":
+		c := ctx.WithLogger(context.Background(), l)
+		s.Notifier.ReviewRequested(c, &webhook)
+		w.WriteHeader(http.StatusOK)
+	default:
+		l.Info("at", "ignore_pull_request_action")
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (s *Server) handlePullRequestReviewEvent(w http.ResponseWriter, r *http.Request, l log.LeveledLogger) {
 	var webhook github.PullRequestReviewWebhook
 
 	if err := json.NewDecoder(r.Body).Decode(&webhook); err != nil {
@@ -83,9 +103,9 @@ func (s *Server) handlePullRequestReview(w http.ResponseWriter, r *http.Request,
 	c := ctx.WithLogger(context.Background(), l)
 
 	if webhook.Review.IsApproved() {
-		s.notifier.Approved(c, webhook.Repository, webhook.PullRequest, webhook.Review)
+		s.Notifier.Approved(c, webhook.Repository, webhook.PullRequest, webhook.Review)
 	} else if webhook.Review.User.ID != webhook.PullRequest.User.ID {
-		s.notifier.ChangesRequested(c, webhook.Repository, webhook.PullRequest, webhook.Review)
+		s.Notifier.ChangesRequested(c, webhook.Repository, webhook.PullRequest, webhook.Review)
 	}
 
 	l.Info("at", "pull_request_updated")

@@ -11,11 +11,17 @@ import (
 	"github.com/geckoboard/cake-bot/github"
 )
 
+type Notifier interface {
+	Approved(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
+	ChangesRequested(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
+	ReviewRequested(context.Context, *github.PullRequestWebhook) error
+}
+
 const MAX_TITLE_LENGTH = 35
 
 var slackHook = &http.Client{}
 
-type Notifier struct {
+type SlackNotifier struct {
 	directory SlackUserDirectory
 	Webhook   string
 }
@@ -27,52 +33,61 @@ type CakeEvent struct {
 	IconEmoji string `json:"icon_emoji"`
 }
 
-func NewNotifier(d SlackUserDirectory, url string) *Notifier {
-	return &Notifier{
+func NewSlackNotifier(d SlackUserDirectory, url string) *SlackNotifier {
+	return &SlackNotifier{
 		directory: d,
 		Webhook:   url,
 	}
 }
 
-func (n Notifier) Approved(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
-	e := CakeEvent{
+func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
+	evt := CakeEvent{
 		Channel:  "#devs",
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
 			"%s you have received a :cake: for %s",
 			n.directory.BuildLinkToUser(pr.User),
-			prLink(repo, pr, review),
+			prLink(review.HTMLURL(), repo, pr),
 		),
 		IconEmoji: ":sheep:",
 	}
 
-	return n.sendMessage(c, e)
+	return n.sendMessage(c, evt)
 }
 
-func (n Notifier) ChangesRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
-	e := CakeEvent{
+func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
+	evt := CakeEvent{
 		Channel:  "#devs",
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
 			"%s you have received some feedback on %s",
 			n.directory.BuildLinkToUser(pr.User),
-			prLink(repo, pr, review),
+			prLink(review.HTMLURL(), repo, pr),
 		),
 		IconEmoji: ":sheep:",
 	}
 
-	return n.sendMessage(c, e)
+	return n.sendMessage(c, evt)
 }
 
-func prLink(repo *github.Repository, pr *github.PullRequest, review *github.Review) string {
-	title := pr.Title
-	if len(title) > MAX_TITLE_LENGTH {
-		title = fmt.Sprintf("%s...", title[0:MAX_TITLE_LENGTH])
+func (n *SlackNotifier) ReviewRequested(c context.Context, webhook *github.PullRequestWebhook) error {
+	url := webhook.PullRequest.HTMLURL
+	evt := CakeEvent{
+		Channel:  "#devs",
+		Username: "cake-bot",
+		Text: fmt.Sprintf(
+			"%s you have been requested by %s to review %s",
+			n.directory.BuildLinkToUser(webhook.RequestedReviewer),
+			n.directory.BuildLinkToUser(webhook.Sender),
+			prLink(url, webhook.Repository, webhook.PullRequest),
+		),
+		IconEmoji: ":sheep:",
 	}
-	return fmt.Sprintf("<%s|%s#%d> - %s", review.HTMLURL(), repo.Name, pr.Number, title)
+
+	return n.sendMessage(c, evt)
 }
 
-func (n Notifier) sendMessage(c context.Context, e CakeEvent) error {
+func (n *SlackNotifier) sendMessage(c context.Context, e CakeEvent) error {
 	l := ctx.Logger(c).With("at", "slack.ping-user")
 
 	payload, err := json.Marshal(e)
@@ -103,4 +118,12 @@ func (n Notifier) sendMessage(c context.Context, e CakeEvent) error {
 
 	l.Info("msg", "ping successful")
 	return nil
+}
+
+func prLink(url string, repo *github.Repository, pr *github.PullRequest) string {
+	title := pr.Title
+	if len(title) > MAX_TITLE_LENGTH {
+		title = fmt.Sprintf("%s...", title[0:MAX_TITLE_LENGTH])
+	}
+	return fmt.Sprintf("<%s|%s#%d> - %s", url, repo.Name, pr.Number, title)
 }

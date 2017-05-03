@@ -32,6 +32,10 @@ func (f *fakeNotifier) ChangesRequested(_ context.Context, repo *github.Reposito
 	return nil
 }
 
+func (f *fakeNotifier) ReviewRequested(_ context.Context, webhook *github.PullRequestWebhook) error {
+	return nil
+}
+
 func TestHandleReviewRequiresChanges(t *testing.T) {
 	outcome := &fakeNotifier{}
 

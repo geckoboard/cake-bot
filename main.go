@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	notifier := NewNotifier(users, slackHook)
+	notifier := NewSlackNotifier(users, slackHook)
 	httpServer := http.Server{
 		Addr:    ":" + httpPort,
 		Handler: bugsnag.Handler(NewServer(notifier)),

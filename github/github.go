@@ -1,5 +1,12 @@
 package github
 
+type PullRequest struct {
+	HTMLURL string `json:"html_url"`
+	Number  int    `json:"number"`
+	Title   string `json:"title"`
+	User    *User  `json:"user"`
+}
+
 type Repository struct {
 	Name     string `json:"name"`
 	FullName string `json:"full_name"`
@@ -21,13 +28,6 @@ func (r *Review) IsApproved() bool {
 
 func (r *Review) HTMLURL() string {
 	return r.Links.GetURL("html")
-}
-
-type PullRequest struct {
-	HTMLURL string `json:"html_url"`
-	Number  int    `json:"number"`
-	Title   string `json:"title"`
-	User    *User  `json:"user"`
 }
 
 type User struct {
