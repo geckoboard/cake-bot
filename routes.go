@@ -42,7 +42,7 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 		"github_delivery_id", r.Header.Get("X-GitHub-Delivery"),
 		"github_event", event,
 	)
-	
+
 	switch event {
 	case "pull_request_review":
 		// handle request
@@ -60,9 +60,9 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 		w.WriteHeader(501)
 		return
 	}
-	
+
 	l = payload.enhanceLogger(l)
-	
+
 	if payload.Action != "submitted" {
 		l.Info("at", "ignore_review_action")
 		w.WriteHeader(http.StatusOK)
@@ -75,7 +75,7 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 		return
 	}
 
-	c := ctx.WithLogger(context.Background(),l)
+	c := ctx.WithLogger(context.Background(), l)
 
 	if payload.Review.IsApproved() {
 		s.notifier.Approved(c, *payload.Repository, *payload.PullRequest, *payload.Review)
