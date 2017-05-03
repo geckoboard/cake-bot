@@ -15,19 +15,19 @@ type notification struct {
 	action string
 	repo   *github.Repository
 	pr     *github.PullRequest
-	review *PullRequestReview
+	review *github.Review
 }
 
 type fakeNotifier struct {
 	notifications []notification
 }
 
-func (f *fakeNotifier) Approved(_ context.Context, repo *github.Repository, pr *github.PullRequest, review *PullRequestReview) error {
+func (f *fakeNotifier) Approved(_ context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
 	f.notifications = append(f.notifications, notification{"approved", repo, pr, review})
 	return nil
 }
 
-func (f *fakeNotifier) ChangesRequested(_ context.Context, repo *github.Repository, pr *github.PullRequest, review *PullRequestReview) error {
+func (f *fakeNotifier) ChangesRequested(_ context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
 	f.notifications = append(f.notifications, notification{"changes_requested", repo, pr, review})
 	return nil
 }

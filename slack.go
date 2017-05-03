@@ -34,7 +34,7 @@ func NewNotifier(d SlackUserDirectory, url string) *Notifier {
 	}
 }
 
-func (n Notifier) Approved(c context.Context, repo *github.Repository, pr *github.PullRequest, review *PullRequestReview) error {
+func (n Notifier) Approved(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
 	e := CakeEvent{
 		Channel:  "#devs",
 		Username: "cake-bot",
@@ -49,7 +49,7 @@ func (n Notifier) Approved(c context.Context, repo *github.Repository, pr *githu
 	return n.sendMessage(c, e)
 }
 
-func (n Notifier) ChangesRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, review *PullRequestReview) error {
+func (n Notifier) ChangesRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
 	e := CakeEvent{
 		Channel:  "#devs",
 		Username: "cake-bot",
@@ -64,12 +64,12 @@ func (n Notifier) ChangesRequested(c context.Context, repo *github.Repository, p
 	return n.sendMessage(c, e)
 }
 
-func prLink(repo *github.Repository, pr *github.PullRequest, review *PullRequestReview) string {
+func prLink(repo *github.Repository, pr *github.PullRequest, review *github.Review) string {
 	title := pr.Title
 	if len(title) > MAX_TITLE_LENGTH {
 		title = fmt.Sprintf("%s...", title[0:MAX_TITLE_LENGTH])
 	}
-	return fmt.Sprintf("<%s|%s#%d> - %s", review.URL(), repo.Name, pr.Number, title)
+	return fmt.Sprintf("<%s|%s#%d> - %s", review.HTMLURL(), repo.Name, pr.Number, title)
 }
 
 func (n Notifier) sendMessage(c context.Context, e CakeEvent) error {

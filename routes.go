@@ -13,28 +13,31 @@ import (
 )
 
 type NotifyPullRequestReviewStatus interface {
-	Approved(context.Context, *github.Repository, *github.PullRequest, *PullRequestReview) error
-	ChangesRequested(context.Context, *github.Repository, *github.PullRequest, *PullRequestReview) error
+	Approved(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
+	ChangesRequested(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
 }
 
 func NewServer(notifier NotifyPullRequestReviewStatus) http.Handler {
+	s := &Server{
+		notifier: notifier,
+	}
+
 	r := httprouter.New()
-	s := server{notifier}
 	r.GET("/", s.root)
 	r.POST("/github", s.githubWebhook)
 	return r
 }
 
-type server struct {
+type Server struct {
 	notifier NotifyPullRequestReviewStatus
 }
 
-func (s server) root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+func (s *Server) root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	w.Header().Add("Location", "https://github.com/geckoboard/cake-bot")
-	w.WriteHeader(302)
+	w.WriteHeader(http.StatusFound)
 }
 
-func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (s *Server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	event := r.Header.Get("X-GitHub-Event")
 
 	l := logger.With(
@@ -45,7 +48,7 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 	)
 
 	switch event {
-	case "pull_request_review":
+	case github.PullRequestReviewEvent:
 		s.handlePullRequestReview(w, r, l)
 	default:
 		l.Info("at", "ignore_event")
@@ -53,8 +56,8 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 	}
 }
 
-func (s server) handlePullRequestReview(w http.ResponseWriter, r *http.Request, l log.LeveledLogger) {
-	var webhook pullRequestReviewWebhook
+func (s *Server) handlePullRequestReview(w http.ResponseWriter, r *http.Request, l log.LeveledLogger) {
+	var webhook github.PullRequestReviewWebhook
 
 	if err := json.NewDecoder(r.Body).Decode(&webhook); err != nil {
 		bugsnag.Notify(err)
@@ -71,9 +74,9 @@ func (s server) handlePullRequestReview(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	if err := webhook.ValidatePayload(); err != nil {
+	if err := webhook.Validate(); err != nil {
 		l.Error("at", "payload_error", "err", err)
-		w.WriteHeader(501)
+		w.WriteHeader(http.StatusNotImplemented)
 		return
 	}
 
