@@ -54,24 +54,24 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 }
 
 func (s server) handlePullRequestReview(w http.ResponseWriter, r *http.Request, l log.LeveledLogger) {
-	var payload webhookPayload
+	var webhook pullRequestReviewWebhook
 
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&webhook); err != nil {
 		bugsnag.Notify(err)
 		l.Error("at", "unmarshal_error", "err", err)
-		w.WriteHeader(501)
+		w.WriteHeader(http.StatusNotImplemented)
 		return
 	}
 
-	l = payload.enhanceLogger(l)
+	l = webhook.EnhanceLogger(l)
 
-	if payload.Action != "submitted" {
+	if webhook.Action != "submitted" {
 		l.Info("at", "ignore_review_action")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	if err := payload.checkPayload(); err != nil {
+	if err := webhook.ValidatePayload(); err != nil {
 		l.Error("at", "payload_error", "err", err)
 		w.WriteHeader(501)
 		return
@@ -79,10 +79,10 @@ func (s server) handlePullRequestReview(w http.ResponseWriter, r *http.Request, 
 
 	c := ctx.WithLogger(context.Background(), l)
 
-	if payload.Review.IsApproved() {
-		s.notifier.Approved(c, payload.Repository, payload.PullRequest, payload.Review)
-	} else if payload.Review.User.ID != payload.PullRequest.User.ID {
-		s.notifier.ChangesRequested(c, payload.Repository, payload.PullRequest, payload.Review)
+	if webhook.Review.IsApproved() {
+		s.notifier.Approved(c, webhook.Repository, webhook.PullRequest, webhook.Review)
+	} else if webhook.Review.User.ID != webhook.PullRequest.User.ID {
+		s.notifier.ChangesRequested(c, webhook.Repository, webhook.PullRequest, webhook.Review)
 	}
 
 	l.Info("at", "pull_request_updated")

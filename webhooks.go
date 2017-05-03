@@ -7,14 +7,14 @@ import (
 	"github.com/google/go-github/github"
 )
 
-type webhookPayload struct {
+type pullRequestReviewWebhook struct {
 	Action      string              `json:"action"`
 	Repository  *github.Repository  `json:"repository"`
 	PullRequest *github.PullRequest `json:"pull_request"`
 	Review      *PullRequestReview  `json:"review"`
 }
 
-func (w *webhookPayload) enhanceLogger(l log.LeveledLogger) log.LeveledLogger {
+func (w *pullRequestReviewWebhook) EnhanceLogger(l log.LeveledLogger) log.LeveledLogger {
 	l = l.With("action", w.Action)
 
 	if w.Repository != nil {
@@ -31,7 +31,7 @@ func (w *webhookPayload) enhanceLogger(l log.LeveledLogger) log.LeveledLogger {
 	return l
 }
 
-func (w *webhookPayload) checkPayload() error {
+func (w *pullRequestReviewWebhook) ValidatePayload() error {
 	if w.Review == nil {
 		return errors.New(`"review" field is missing from webhook payload`)
 	}
