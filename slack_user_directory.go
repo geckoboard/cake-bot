@@ -9,45 +9,23 @@ import (
 	"github.com/google/go-github/github"
 )
 
-func NewSlackUserDirectory(gh *github.Client, sl *slack.Client) SlackUserDirectory {
+func NewSlackUserDirectory(slackClient *slack.Client) SlackUserDirectory {
 	return SlackUserDirectory{
-		gh,
-		sl,
-		map[string]slack.User{},
+		slackClient: slackClient,
+		directory:   make(map[string]slack.User),
 	}
 }
 
 type SlackUserDirectory struct {
-	githubClient *github.Client
-	slackClient  *slack.Client
-
-	directory map[string]slack.User
+	slackClient *slack.Client
+	directory   map[string]slack.User
 }
 
 func (s *SlackUserDirectory) BuildLinkToUser(ghUser *github.User) string {
 	u, exists := s.directory[strings.ToLower(*ghUser.Login)]
-
 	if exists {
 		return fmt.Sprintf("<@%s>", u.ID)
 	}
-
-	// We don't know the user's Slack handle, let's fall back to just including
-	// their GitHub name.
-
-	// Not all API responses/webhook payloads embed the user's name, so we need
-	// to look the user up separately.
-	info, _, err := s.githubClient.Users.Get(*ghUser.Login)
-	if err != nil {
-		return ""
-	}
-
-	if info.Name != nil {
-		name := strings.SplitN(*info.Name, " ", 2)
-		if len(name) > 0 {
-			return strings.ToLower(name[0])
-		}
-	}
-
 	return *ghUser.Login
 }
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,88 +8,47 @@ import (
 	bugsnag "github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/log"
 	"github.com/geckoboard/cake-bot/slack"
-	github "github.com/google/go-github/github"
 	"github.com/joho/godotenv"
-	"golang.org/x/oauth2"
 )
 
 var (
-	GithubApiKey string
-	logger       log.LeveledLogger
+	logger log.LeveledLogger = log.New()
 )
 
-type Config struct {
-	Port             int
-	GithubOrg        string
-	SlackWebhook     string
-	BulkSyncInterval int
-}
-
-// tokenSource is an oauth2.TokenSource which returns a static access token
-type tokenSource struct {
-	token *oauth2.Token
-}
-
-// Token implements the oauth2.TokenSource interface
-func (t *tokenSource) Token() (*oauth2.Token, error) {
-	return t.token, nil
-}
-
 func main() {
-	logger = log.New()
-
-	err := godotenv.Load()
-	if err != nil {
+	if err := godotenv.Load(); err != nil {
 		logger.Error("msg", "Error loading .env file")
 	}
 
-	var c Config
-
-	flag.IntVar(&c.Port, "port", 8090, "port to run http server on, if not set server does not run")
-	flag.Parse()
-
-	required := map[string]string{
-		"GITHUB_ACCESS_TOKEN": "",
-		"SLACK_TOKEN":         "",
-		"SLACK_HOOK":          "",
-	}
-
-	for k, _ := range required {
-		val := os.Getenv(k)
-		if val == "" {
-			logger.Error("msg", k+" not specified")
-			os.Exit(1)
-		}
-		required[k] = val
-	}
-
-	gh := github.NewClient(
-		oauth2.NewClient(
-			oauth2.NoContext,
-			&tokenSource{
-				&oauth2.Token{AccessToken: required["GITHUB_ACCESS_TOKEN"]},
-			},
-		),
+	var (
+		httpPort   = mustGetenv("PORT")
+		slackToken = mustGetenv("SLACK_TOKEN")
+		slackHook  = mustGetenv("SLACK_HOOK")
 	)
 
-	sl := slack.New(required["SLACK_TOKEN"])
-
-	fmt.Println("scanning slack directory")
-	users := NewSlackUserDirectory(gh, sl)
+	users := NewSlackUserDirectory(slack.New(slackToken))
 	if err := users.ScanSlackTeam(); err != nil {
-		logger.Error("msg", fmt.Sprintf("building Slack user map raised an error: %s", err.Error()))
+		logger.Error("msg", fmt.Sprintf("Error building Slack user map: %v", err))
 		os.Exit(1)
 	}
 
-	notifier := NewNotifier(users, required["SLACK_HOOK"])
-
+	notifier := NewNotifier(users, slackHook)
 	httpServer := http.Server{
-		Addr:    fmt.Sprintf(":%d", c.Port),
+		Addr:    ":" + httpPort,
 		Handler: bugsnag.Handler(NewServer(notifier)),
 	}
 
-	fmt.Printf("Listening on port %d", c.Port)
+	logger.Info("msg", fmt.Sprintf("Listening on port %s", httpPort))
 	httpServer.ListenAndServe()
+}
+
+func mustGetenv(key string) string {
+	str := os.Getenv(key)
+	if str == "" {
+		logger.Error("msg", fmt.Sprintf("Missing environment variable: %s", key))
+		os.Exit(1)
+	}
+	return str
 }
 
 func init() {
