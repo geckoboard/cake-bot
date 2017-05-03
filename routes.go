@@ -7,6 +7,7 @@ import (
 
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
+	"github.com/geckoboard/cake-bot/log"
 	"github.com/google/go-github/github"
 	"github.com/julienschmidt/httprouter"
 )
@@ -45,13 +46,14 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 
 	switch event {
 	case "pull_request_review":
-		// handle request
+		s.handlePullRequestReview(w, r, l)
 	default:
 		l.Info("at", "ignore_event")
 		w.WriteHeader(http.StatusOK)
-		return
 	}
+}
 
+func (s server) handlePullRequestReview(w http.ResponseWriter, r *http.Request, l log.LeveledLogger) {
 	var payload webhookPayload
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
