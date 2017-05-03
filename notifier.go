@@ -76,7 +76,7 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, webhook *github.PullR
 		Channel:  "#devs",
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
-			"%s you have been requested by %s to review %s",
+			"%s you have been asked by %s to review %s",
 			n.directory.BuildLinkToUser(webhook.RequestedReviewer),
 			n.directory.BuildLinkToUser(webhook.Sender),
 			prLink(url, webhook.Repository, webhook.PullRequest),
