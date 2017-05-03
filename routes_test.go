@@ -13,21 +13,21 @@ import (
 
 type notification struct {
 	action ReviewState
-	repo   github.Repository
-	pr     github.PullRequest
-	review PullRequestReview
+	repo   *github.Repository
+	pr     *github.PullRequest
+	review *PullRequestReview
 }
 
 type fakeNotifier struct {
 	notifications []notification
 }
 
-func (f *fakeNotifier) Approved(_ context.Context, repo github.Repository, pr github.PullRequest, review PullRequestReview) error {
+func (f *fakeNotifier) Approved(_ context.Context, repo *github.Repository, pr *github.PullRequest, review *PullRequestReview) error {
 	f.notifications = append(f.notifications, notification{APPROVED, repo, pr, review})
 	return nil
 }
 
-func (f *fakeNotifier) ChangesRequested(_ context.Context, repo github.Repository, pr github.PullRequest, review PullRequestReview) error {
+func (f *fakeNotifier) ChangesRequested(_ context.Context, repo *github.Repository, pr *github.PullRequest, review *PullRequestReview) error {
 	f.notifications = append(f.notifications, notification{CHANGES_REQUESTED, repo, pr, review})
 	return nil
 }

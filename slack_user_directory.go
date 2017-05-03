@@ -24,19 +24,19 @@ type SlackUserDirectory struct {
 	directory map[string]slack.User
 }
 
-func (s *SlackUserDirectory) BuildLinkToUser(g *github.User) string {
-	u, exists := s.directory[strings.ToLower(*g.Login)]
+func (s *SlackUserDirectory) BuildLinkToUser(ghUser *github.User) string {
+	u, exists := s.directory[strings.ToLower(*ghUser.Login)]
 
 	if exists {
 		return fmt.Sprintf("<@%s>", u.ID)
 	}
 
-	// We don't know the user's slack handle, let's fallback to just including
-	// their github name
+	// We don't know the user's Slack handle, let's fall back to just including
+	// their GitHub name.
 
-	// Not all API responses/webhook payloads embed the user's name,
-	// so we need to look the user up separately
-	info, _, err := s.githubClient.Users.Get(*g.Login)
+	// Not all API responses/webhook payloads embed the user's name, so we need
+	// to look the user up separately.
+	info, _, err := s.githubClient.Users.Get(*ghUser.Login)
 	if err != nil {
 		return ""
 	}
@@ -48,7 +48,7 @@ func (s *SlackUserDirectory) BuildLinkToUser(g *github.User) string {
 		}
 	}
 
-	return *g.Login
+	return *ghUser.Login
 }
 
 func (s *SlackUserDirectory) ScanSlackTeam() error {
@@ -61,7 +61,8 @@ func (s *SlackUserDirectory) ScanSlackTeam() error {
 	if err != nil {
 		return err
 	}
-	GHID := findGithubFieldID(team)
+
+	githubFieldID := findGithubFieldID(team)
 
 	var wg sync.WaitGroup
 	var l sync.RWMutex
@@ -77,7 +78,7 @@ func (s *SlackUserDirectory) ScanSlackTeam() error {
 				return
 			}
 
-			if name := findGithubUsername(GHID, profile); name != "" {
+			if name := findGithubUsername(githubFieldID, profile); name != "" {
 				l.Lock()
 				d[name] = u
 				l.Unlock()

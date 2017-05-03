@@ -13,8 +13,8 @@ import (
 )
 
 type NotifyPullRequestReviewStatus interface {
-	Approved(context.Context, github.Repository, github.PullRequest, PullRequestReview) error
-	ChangesRequested(context.Context, github.Repository, github.PullRequest, PullRequestReview) error
+	Approved(context.Context, *github.Repository, *github.PullRequest, *PullRequestReview) error
+	ChangesRequested(context.Context, *github.Repository, *github.PullRequest, *PullRequestReview) error
 }
 
 func NewServer(notifier NotifyPullRequestReviewStatus) http.Handler {
@@ -80,9 +80,9 @@ func (s server) handlePullRequestReview(w http.ResponseWriter, r *http.Request, 
 	c := ctx.WithLogger(context.Background(), l)
 
 	if payload.Review.IsApproved() {
-		s.notifier.Approved(c, *payload.Repository, *payload.PullRequest, *payload.Review)
-	} else if *payload.Review.User.ID != *payload.PullRequest.User.ID {
-		s.notifier.ChangesRequested(c, *payload.Repository, *payload.PullRequest, *payload.Review)
+		s.notifier.Approved(c, payload.Repository, payload.PullRequest, payload.Review)
+	} else if payload.Review.User.ID != payload.PullRequest.User.ID {
+		s.notifier.ChangesRequested(c, payload.Repository, payload.PullRequest, payload.Review)
 	}
 
 	l.Info("at", "pull_request_updated")

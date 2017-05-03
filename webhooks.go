@@ -8,8 +8,8 @@ import (
 )
 
 type webhookPayload struct {
-	Action      string
-	Repository  *github.Repository
+	Action      string              `json:"action"`
+	Repository  *github.Repository  `json:"repository"`
 	PullRequest *github.PullRequest `json:"pull_request"`
 	Review      *PullRequestReview  `json:"review"`
 }
