@@ -42,9 +42,9 @@ $ make test
 You can also send some example webhooks to the server during development:
 
 ```console
-$ cat example-webhooks/pull_request_review_approved.json | curl http://localhost:8090 \
+$ cat example-webhooks/pull_request_review_approved.json | curl http://localhost:8090/github \
   -X POST \
-  -H "X-Github-Event: pull_request_review" \
+  -H "X-GitHub-Event: pull_request_review" \
   -d @-
 ```
 
