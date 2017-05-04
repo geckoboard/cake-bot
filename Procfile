@@ -1,1 +1,1 @@
-web: ./bin/cake-bot -port $PORT
+web: ./bin/cake-bot

@@ -7,28 +7,32 @@ import (
 	"os"
 	"testing"
 
+	"github.com/geckoboard/cake-bot/github"
 	"github.com/geckoboard/cake-bot/log"
-	"github.com/google/go-github/github"
 )
 
 type notification struct {
-	action ReviewState
-	repo   github.Repository
-	pr     github.PullRequest
-	review PullRequestReview
+	action string
+	repo   *github.Repository
+	pr     *github.PullRequest
+	review *github.Review
 }
 
 type fakeNotifier struct {
 	notifications []notification
 }
 
-func (f *fakeNotifier) Approved(_ context.Context, repo github.Repository, pr github.PullRequest, review PullRequestReview) error {
-	f.notifications = append(f.notifications, notification{APPROVED, repo, pr, review})
+func (f *fakeNotifier) Approved(_ context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
+	f.notifications = append(f.notifications, notification{"approved", repo, pr, review})
 	return nil
 }
 
-func (f *fakeNotifier) ChangesRequested(_ context.Context, repo github.Repository, pr github.PullRequest, review PullRequestReview) error {
-	f.notifications = append(f.notifications, notification{CHANGES_REQUESTED, repo, pr, review})
+func (f *fakeNotifier) ChangesRequested(_ context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
+	f.notifications = append(f.notifications, notification{"changes_requested", repo, pr, review})
+	return nil
+}
+
+func (f *fakeNotifier) ReviewRequested(_ context.Context, webhook *github.PullRequestWebhook) error {
 	return nil
 }
 
@@ -65,12 +69,12 @@ func TestHandleReviewRequiresChanges(t *testing.T) {
 		t.Fatalf("expected 1 notification that PR has been approved, instead got: %#v", outcome.notifications)
 	}
 
-	if outcome.notifications[0].action != CHANGES_REQUESTED {
-		t.Fatalf("expected notification to be CHANGES_REQUESTED, got: %q", outcome.notifications[0])
+	if outcome.notifications[0].action != "changes_requested" {
+		t.Fatalf("expected notification to be changes_requested, got: %q", outcome.notifications[0].action)
 	}
 
-	if *outcome.notifications[0].pr.Number != 12 {
-		t.Fatalf("expected PR number %d, got: %q", 12, *outcome.notifications[0].pr.Number)
+	if outcome.notifications[0].pr.Number != 12 {
+		t.Fatalf("expected PR number %d, got: %q", 12, outcome.notifications[0].pr.Number)
 	}
 
 	if outcome.notifications[0].review.ID != 13449121 {
@@ -111,12 +115,12 @@ func TestHandleReviewApproved(t *testing.T) {
 		t.Fatalf("expected 1 notification that PR has been approved, instead got: %#v", outcome.notifications)
 	}
 
-	if outcome.notifications[0].action != APPROVED {
-		t.Fatalf("expected notification to be APPROVED, got: %q", outcome.notifications[0])
+	if outcome.notifications[0].action != "approved" {
+		t.Fatalf("expected notification to be approved, got: %q", outcome.notifications[0].action)
 	}
 
-	if *outcome.notifications[0].pr.Number != 12 {
-		t.Fatalf("expected PR number %d, got: %q", 12, *outcome.notifications[0].pr.Number)
+	if outcome.notifications[0].pr.Number != 12 {
+		t.Fatalf("expected PR number %d, got: %d", 12, outcome.notifications[0].pr.Number)
 	}
 
 	if outcome.notifications[0].review.ID != 13449164 {

@@ -19,9 +19,6 @@ clean:
 run: build
 	bin/$(NAME)
 
-run-web: build
-	bin/$(NAME) -port 9098
-
 test:
 	go test -v $(TEST_PKGS)
 

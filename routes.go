@@ -7,33 +7,32 @@ import (
 
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
-	"github.com/google/go-github/github"
+	"github.com/geckoboard/cake-bot/github"
+	"github.com/geckoboard/cake-bot/log"
 	"github.com/julienschmidt/httprouter"
 )
 
-type NotifyPullRequestReviewStatus interface {
-	Approved(context.Context, github.Repository, github.PullRequest, PullRequestReview) error
-	ChangesRequested(context.Context, github.Repository, github.PullRequest, PullRequestReview) error
-}
+func NewServer(notifier Notifier) http.Handler {
+	s := &Server{
+		Notifier: notifier,
+	}
 
-func NewServer(notifier NotifyPullRequestReviewStatus) http.Handler {
 	r := httprouter.New()
-	s := server{notifier}
 	r.GET("/", s.root)
 	r.POST("/github", s.githubWebhook)
 	return r
 }
 
-type server struct {
-	notifier NotifyPullRequestReviewStatus
+type Server struct {
+	Notifier Notifier
 }
 
-func (s server) root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+func (s *Server) root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	w.Header().Add("Location", "https://github.com/geckoboard/cake-bot")
-	w.WriteHeader(302)
+	w.WriteHeader(http.StatusFound)
 }
 
-func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (s *Server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	event := r.Header.Get("X-GitHub-Event")
 
 	l := logger.With(
@@ -44,43 +43,69 @@ func (s server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprout
 	)
 
 	switch event {
-	case "pull_request_review":
-		// handle request
+	case github.PullRequestEvent:
+		s.handlePullRequestEvent(w, r, l)
+	case github.PullRequestReviewEvent:
+		s.handlePullRequestReviewEvent(w, r, l)
 	default:
 		l.Info("at", "ignore_event")
 		w.WriteHeader(http.StatusOK)
-		return
 	}
+}
 
-	var payload webhookPayload
+func (s *Server) handlePullRequestEvent(w http.ResponseWriter, r *http.Request, l log.LeveledLogger) {
+	var webhook github.PullRequestWebhook
 
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&webhook); err != nil {
 		bugsnag.Notify(err)
 		l.Error("at", "unmarshal_error", "err", err)
-		w.WriteHeader(501)
+		w.WriteHeader(http.StatusNotImplemented)
 		return
 	}
 
-	l = payload.enhanceLogger(l)
+	l = webhook.EnhanceLogger(l)
 
-	if payload.Action != "submitted" {
+	switch webhook.Action {
+	case "review_requested":
+		c := ctx.WithLogger(context.Background(), l)
+		s.Notifier.ReviewRequested(c, &webhook)
+		w.WriteHeader(http.StatusOK)
+	default:
+		l.Info("at", "ignore_pull_request_action")
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (s *Server) handlePullRequestReviewEvent(w http.ResponseWriter, r *http.Request, l log.LeveledLogger) {
+	var webhook github.PullRequestReviewWebhook
+
+	if err := json.NewDecoder(r.Body).Decode(&webhook); err != nil {
+		bugsnag.Notify(err)
+		l.Error("at", "unmarshal_error", "err", err)
+		w.WriteHeader(http.StatusNotImplemented)
+		return
+	}
+
+	l = webhook.EnhanceLogger(l)
+
+	if webhook.Action != "submitted" {
 		l.Info("at", "ignore_review_action")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	if err := payload.checkPayload(); err != nil {
+	if err := webhook.Validate(); err != nil {
 		l.Error("at", "payload_error", "err", err)
-		w.WriteHeader(501)
+		w.WriteHeader(http.StatusNotImplemented)
 		return
 	}
 
 	c := ctx.WithLogger(context.Background(), l)
 
-	if payload.Review.IsApproved() {
-		s.notifier.Approved(c, *payload.Repository, *payload.PullRequest, *payload.Review)
-	} else if *payload.Review.User.ID != *payload.PullRequest.User.ID {
-		s.notifier.ChangesRequested(c, *payload.Repository, *payload.PullRequest, *payload.Review)
+	if webhook.Review.IsApproved() {
+		s.Notifier.Approved(c, webhook.Repository, webhook.PullRequest, webhook.Review)
+	} else if webhook.Review.User.ID != webhook.PullRequest.User.ID {
+		s.Notifier.ChangesRequested(c, webhook.Repository, webhook.PullRequest, webhook.Review)
 	}
 
 	l.Info("at", "pull_request_updated")
