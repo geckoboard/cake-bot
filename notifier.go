@@ -42,11 +42,10 @@ func NewSlackNotifier(d SlackUserDirectory, url string) *SlackNotifier {
 
 func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
 	evt := CakeEvent{
-		Channel:  "#devs",
+		Channel:  n.directory.BuildLinkToUser(pr.User),
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
-			"%s you have received a :cake: for %s",
-			n.directory.BuildLinkToUser(pr.User),
+			"You have received a :cake: for %s",
 			prLink(review.HTMLURL(), repo, pr),
 		),
 		IconEmoji: ":sheep:",
@@ -57,11 +56,10 @@ func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr 
 
 func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
 	evt := CakeEvent{
-		Channel:  "#devs",
+		Channel:  n.directory.BuildLinkToUser(pr.User),
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
-			"%s you have received some feedback on %s",
-			n.directory.BuildLinkToUser(pr.User),
+			"You have received some feedback on %s",
 			prLink(review.HTMLURL(), repo, pr),
 		),
 		IconEmoji: ":sheep:",
@@ -73,11 +71,10 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 func (n *SlackNotifier) ReviewRequested(c context.Context, webhook *github.PullRequestWebhook) error {
 	url := webhook.PullRequest.HTMLURL
 	evt := CakeEvent{
-		Channel:  "#devs",
+		Channel:  n.directory.BuildLinkToUser(webhook.RequestedReviewer),
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
-			"%s you have been asked by %s to review %s",
-			n.directory.BuildLinkToUser(webhook.RequestedReviewer),
+			"You have been asked by %s to review %s",
 			n.directory.BuildLinkToUser(webhook.Sender),
 			prLink(url, webhook.Repository, webhook.PullRequest),
 		),
