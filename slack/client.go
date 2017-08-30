@@ -3,6 +3,7 @@ package slack
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -19,10 +20,13 @@ type Client struct {
 }
 
 func (c Client) GetTeamProfile() (*TeamProfile, error) {
-	req, err := c.newRequest("GET", "/team.profile.get")
+	req, err := c.newRequest("GET", "/team.profile.get", nil)
 	if err != nil {
 		return nil, err
 	}
+
+	values := url.Values{"token": {c.token}}
+	req.URL.RawQuery = values.Encode()
 
 	resp, err := c.doRequest(req)
 	if err != nil {
@@ -30,26 +34,29 @@ func (c Client) GetTeamProfile() (*TeamProfile, error) {
 	}
 	defer resp.Body.Close()
 
-	profileResponse := struct {
-		Profile *TeamProfile `json:"profile,omitempty"`
-	}{}
-
-	if err = json.NewDecoder(resp.Body).Decode(&profileResponse); err != nil {
-		return nil, errors.New("Bad api body response")
+	var response TeamProfileResponse
+	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, err
 	}
 
-	return profileResponse.Profile, nil
+	if !response.OK {
+		return nil, errors.New(response.Error)
+	}
+
+	return &response.TeamProfile, nil
 }
 
 func (c Client) GetUserProfile(id string) (*UserProfile, error) {
-	req, err := c.newRequest("GET", "/users.profile.get")
+	req, err := c.newRequest("GET", "/users.profile.get", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	q := req.URL.Query()
-	q.Add("user", id)
-	req.URL.RawQuery = q.Encode()
+	values := url.Values{
+		"token": {c.token},
+		"user":  {id},
+	}
+	req.URL.RawQuery = values.Encode()
 
 	resp, err := c.doRequest(req)
 	if err != nil {
@@ -57,22 +64,28 @@ func (c Client) GetUserProfile(id string) (*UserProfile, error) {
 	}
 	defer resp.Body.Close()
 
-	var profileResponse struct {
-		UserProfile *UserProfile `json:"profile,omitempty"`
+	var response UserProfileResponse
+	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, err
 	}
 
-	if err = json.NewDecoder(resp.Body).Decode(&profileResponse); err != nil {
-		return nil, errors.New("Bad api body response")
+	if !response.OK {
+		return nil, errors.New(response.Error)
 	}
 
-	return profileResponse.UserProfile, nil
+	return &response.UserProfile, nil
 }
 
 func (c Client) GetUsers() ([]User, error) {
-	req, err := c.newRequest("GET", "/users.list")
+	req, err := c.newRequest("GET", "/users.list", nil)
 	if err != nil {
 		return nil, err
 	}
+
+	values := url.Values{
+		"token": {c.token},
+	}
+	req.URL.RawQuery = values.Encode()
 
 	resp, err := c.doRequest(req)
 	if err != nil {
@@ -80,15 +93,16 @@ func (c Client) GetUsers() ([]User, error) {
 	}
 	defer resp.Body.Close()
 
-	var usersResponse struct {
-		Members []User `json:"members,omitempty"`
+	var response UsersResponse
+	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, err
 	}
 
-	if err = json.NewDecoder(resp.Body).Decode(&usersResponse); err != nil {
-		return nil, errors.New("Bad api body response")
+	if !response.OK {
+		return nil, errors.New(response.Error)
 	}
 
-	return usersResponse.Members, nil
+	return response.Users, nil
 }
 
 func (c Client) doRequest(req *http.Request) (*http.Response, error) {
@@ -105,24 +119,13 @@ func (c Client) doRequest(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func (c Client) newRequest(method, path string) (*http.Request, error) {
-	req, err := http.NewRequest(method, SLACK_API+path, nil)
+func (c Client) newRequest(method, path string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, SLACK_API+path, body)
 	if err != nil {
 		return nil, err
 	}
 
-	values := url.Values{"token": {c.token}}
-	req.URL.RawQuery = values.Encode()
 	return req, nil
-}
-
-type User struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-type UserProfile struct {
-	Fields map[string]UserProfileField `json:"fields"`
 }
 
 func (p *UserProfile) UnmarshalJSON(data []byte) error {
@@ -145,6 +148,15 @@ func (p *UserProfile) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type User struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type UserProfile struct {
+	Fields map[string]UserProfileField `json:"fields"`
+}
+
 type UserProfileField struct {
 	Value string `json:"value"`
 }
@@ -156,4 +168,24 @@ type TeamProfile struct {
 type TeamProfileField struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
+}
+
+type SlackResponse struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error"`
+}
+
+type TeamProfileResponse struct {
+	TeamProfile TeamProfile `json:"profile"`
+	SlackResponse
+}
+
+type UserProfileResponse struct {
+	UserProfile UserProfile `json:"profile"`
+	SlackResponse
+}
+
+type UsersResponse struct {
+	Users []User `json:"members"`
+	SlackResponse
 }
