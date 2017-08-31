@@ -9,6 +9,7 @@ import (
 
 	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/geckoboard/cake-bot/github"
+	"github.com/geckoboard/cake-bot/slack"
 )
 
 type Notifier interface {
@@ -22,8 +23,7 @@ const MAX_TITLE_LENGTH = 35
 var slackHook = &http.Client{}
 
 type SlackNotifier struct {
-	directory SlackUserDirectory
-	Webhook   string
+	Webhook string
 }
 
 type CakeEvent struct {
@@ -33,10 +33,9 @@ type CakeEvent struct {
 	IconEmoji string `json:"icon_emoji"`
 }
 
-func NewSlackNotifier(d SlackUserDirectory, url string) *SlackNotifier {
+func NewSlackNotifier(url string) *SlackNotifier {
 	return &SlackNotifier{
-		directory: d,
-		Webhook:   url,
+		Webhook: url,
 	}
 }
 
@@ -46,7 +45,7 @@ func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr 
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
 			"%s you have received a :cake: for %s",
-			n.directory.BuildLinkToUser(pr.User),
+			buildLinkToUser(pr.User),
 			prLink(review.HTMLURL(), repo, pr),
 		),
 		IconEmoji: ":sheep:",
@@ -61,7 +60,7 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
 			"%s you have received some feedback on %s",
-			n.directory.BuildLinkToUser(pr.User),
+			buildLinkToUser(pr.User),
 			prLink(review.HTMLURL(), repo, pr),
 		),
 		IconEmoji: ":sheep:",
@@ -77,8 +76,8 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, webhook *github.PullR
 		Username: "cake-bot",
 		Text: fmt.Sprintf(
 			"%s you have been asked by %s to review %s",
-			n.directory.BuildLinkToUser(webhook.RequestedReviewer),
-			n.directory.BuildLinkToUser(webhook.Sender),
+			buildLinkToUser(webhook.RequestedReviewer),
+			buildLinkToUser(webhook.Sender),
 			prLink(url, webhook.Repository, webhook.PullRequest),
 		),
 		IconEmoji: ":sheep:",
@@ -126,4 +125,12 @@ func prLink(url string, repo *github.Repository, pr *github.PullRequest) string 
 		title = fmt.Sprintf("%s...", title[0:MAX_TITLE_LENGTH])
 	}
 	return fmt.Sprintf("<%s|%s#%d> - %s", url, repo.Name, pr.Number, title)
+}
+
+func buildLinkToUser(ghUser *github.User) string {
+	users := slack.Users.FindByGithubUsername(ghUser.Login)
+	if users != nil {
+		return fmt.Sprintf("<@%s>", users[0].ID)
+	}
+	return ghUser.Login
 }

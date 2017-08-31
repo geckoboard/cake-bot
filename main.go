@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	bugsnag "github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/log"
@@ -26,13 +27,16 @@ func main() {
 		slackHook  = mustGetenv("SLACK_HOOK")
 	)
 
-	users := NewSlackUserDirectory(slack.New(slackToken))
-	if err := users.ScanSlackTeam(); err != nil {
-		logger.Error("msg", fmt.Sprintf("Error building Slack user map: %v", err))
-		os.Exit(1)
-	}
+	client := slack.New(slackToken)
 
-	notifier := NewSlackNotifier(users, slackHook)
+	slack.Users.Load(client)
+	go func() {
+		for _ = range time.Tick(5 * time.Minute) {
+			slack.Users.Load(client)
+		}
+	}()
+
+	notifier := NewSlackNotifier(slackHook)
 	httpServer := http.Server{
 		Addr:    ":" + httpPort,
 		Handler: bugsnag.Handler(NewServer(notifier)),
