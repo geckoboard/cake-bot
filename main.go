@@ -23,11 +23,12 @@ func main() {
 	}
 
 	var (
-		httpPort   = mustGetenv("PORT")
-		slackToken = mustGetenv("SLACK_TOKEN")
+		httpPort              = mustGetenv("PORT")
+		slackToken            = mustGetenv("SLACK_TOKEN")
+		slackUserProfileToken = mustGetenv("SLACK_USER_PROFILE_TOKEN") // FML
 	)
 
-	slackClient := slack.New(slackToken)
+	slackClient := slack.New(slackUserProfileToken)
 	refreshSlackUsers(slackClient)
 
 	go func() {
