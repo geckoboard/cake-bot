@@ -1,6 +1,6 @@
 {
   "name": "PRBot",
-  "description": "A small bot for managing code review process on Github",
+  "description": "A small bot for managing code review process on GitHub",
   "env": {
     "BUILDPACK_URL": "https://github.com/heroku/heroku-buildpack-go",
     "SLACK_TOKEN": {

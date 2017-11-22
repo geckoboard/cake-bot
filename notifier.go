@@ -113,7 +113,7 @@ func buildLinkToUser(ghUser *github.User) string {
 }
 
 func findSlackUser(ghUser *github.User) *slack.User {
-	users := slack.Users.FindByGithubUsername(ghUser.Login)
+	users := slack.Users.FindByGitHubUsername(ghUser.Login)
 	if len(users) > 0 {
 		return users[0]
 	}

@@ -41,7 +41,7 @@ func (c *users) Load(api *Client) error {
 				return
 			}
 
-			if name := findGithubUsernameFromCustomFieldID(githubFieldID, profile); name != "" {
+			if name := findGitHubUsernameFromCustomFieldID(githubFieldID, profile); name != "" {
 				c.mu.Lock()
 				if c.userMap[name] == nil {
 					c.userMap[name] = []*User{}
@@ -57,7 +57,7 @@ func (c *users) Load(api *Client) error {
 	return nil
 }
 
-func (c *users) FindByGithubUsername(name string) []*User {
+func (c *users) FindByGitHubUsername(name string) []*User {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -77,7 +77,7 @@ func findCustomFieldID(team *TeamProfile) string {
 	return ""
 }
 
-func findGithubUsernameFromCustomFieldID(fieldId string, profile *UserProfile) string {
+func findGitHubUsernameFromCustomFieldID(fieldId string, profile *UserProfile) string {
 	for id, field := range profile.Fields {
 		if id == fieldId {
 			return strings.TrimSpace(strings.ToLower(field.Value))
