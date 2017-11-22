@@ -35,7 +35,12 @@ func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr 
 		buildLinkToUser(pr.User),
 		prLink(review.HTMLURL(), repo, pr),
 	)
-	return n.sendMessage(c, devsChannel, text)
+
+	if err := n.sendMessage(c, devsChannel, text); err != nil {
+		return err
+	}
+
+	return n.tryNotifyUser(c, pr.User, text)
 }
 
 func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
@@ -44,7 +49,12 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 		buildLinkToUser(pr.User),
 		prLink(review.HTMLURL(), repo, pr),
 	)
-	return n.sendMessage(c, devsChannel, text)
+
+	if err := n.sendMessage(c, devsChannel, text); err != nil {
+		return err
+	}
+
+	return n.tryNotifyUser(c, pr.User, text)
 }
 
 func (n *SlackNotifier) ReviewRequested(c context.Context, webhook *github.PullRequestWebhook) error {
@@ -55,7 +65,19 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, webhook *github.PullR
 		buildLinkToUser(webhook.Sender),
 		prLink(url, webhook.Repository, webhook.PullRequest),
 	)
-	return n.sendMessage(c, devsChannel, text)
+
+	if err := n.sendMessage(c, devsChannel, text); err != nil {
+		return err
+	}
+
+	return n.tryNotifyUser(c, webhook.RequestedReviewer, text)
+}
+
+func (n *SlackNotifier) tryNotifyUser(c context.Context, ghUser *github.User, text string) error {
+	if user := findSlackUser(ghUser); user != nil {
+		return n.sendMessage(c, user.ID, text)
+	}
+	return nil
 }
 
 func (n *SlackNotifier) sendMessage(c context.Context, channel, text string) error {
@@ -71,18 +93,25 @@ func (n *SlackNotifier) sendMessage(c context.Context, channel, text string) err
 	return nil
 }
 
+func buildLinkToUser(ghUser *github.User) string {
+	if user := findSlackUser(ghUser); user != nil {
+		return fmt.Sprintf("<@%s>", user.ID)
+	}
+	return ghUser.Login
+}
+
+func findSlackUser(ghUser *github.User) *slack.User {
+	users := slack.Users.FindByGithubUsername(ghUser.Login)
+	if len(users) > 0 {
+		return &users[0]
+	}
+	return nil
+}
+
 func prLink(url string, repo *github.Repository, pr *github.PullRequest) string {
 	title := pr.Title
 	if len(title) > maxTitleLength {
 		title = fmt.Sprintf("%s...", title[0:maxTitleLength])
 	}
 	return fmt.Sprintf("<%s|%s#%d> - %s", url, repo.Name, pr.Number, title)
-}
-
-func buildLinkToUser(ghUser *github.User) string {
-	users := slack.Users.FindByGithubUsername(ghUser.Login)
-	if users != nil {
-		return fmt.Sprintf("<@%s>", users[0].ID)
-	}
-	return ghUser.Login
 }
