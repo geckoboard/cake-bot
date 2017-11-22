@@ -36,7 +36,7 @@ func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr 
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	if err := n.sendMessage(c, devsChannel, text); err != nil {
+	if err := n.notifyChannel(c, devsChannel, text); err != nil {
 		return err
 	}
 
@@ -50,7 +50,7 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	if err := n.sendMessage(c, devsChannel, text); err != nil {
+	if err := n.notifyChannel(c, devsChannel, text); err != nil {
 		return err
 	}
 
@@ -66,7 +66,7 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, webhook *github.PullR
 		prLink(url, webhook.Repository, webhook.PullRequest),
 	)
 
-	if err := n.sendMessage(c, devsChannel, text); err != nil {
+	if err := n.notifyChannel(c, devsChannel, text); err != nil {
 		return err
 	}
 
@@ -75,15 +75,23 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, webhook *github.PullR
 
 func (n *SlackNotifier) tryNotifyUser(c context.Context, ghUser *github.User, text string) error {
 	if user := findSlackUser(ghUser); user != nil {
-		return n.sendMessage(c, user.ID, text)
+		return n.notifyUser(c, user.ID, text)
 	}
 	return nil
 }
 
-func (n *SlackNotifier) sendMessage(c context.Context, channel, text string) error {
+func (n *SlackNotifier) notifyUser(c context.Context, userID, text string) error {
+	_, _, channel, err := n.client.OpenIMChannel(userID)
+	if err != nil {
+		return err
+	}
+	return n.notifyChannel(c, channel, text)
+}
+
+func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) error {
 	l := ctx.Logger(c).With("at", "slack.ping-user")
 
-	_, _, err := n.client.PostMessage(channel, text, slackapi.PostMessageParameters{})
+	_, _, err := n.client.PostMessage(channel, text, slackapi.NewPostMessageParameters())
 	if err != nil {
 		l.Error("msg", "unable to post message", "err", err)
 		return err
