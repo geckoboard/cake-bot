@@ -58,6 +58,15 @@
 		{
 			"ImportPath": "github.com/kr/logfmt",
 			"Rev": "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
+		},
+		{
+			"ImportPath": "github.com/nlopes/slack",
+			"Comment": "v0.1.0-10-g5cde21b",
+			"Rev": "5cde21b8b96a43fc3435a1f514123d14fd7eabdc"
+		},
+		{
+			"ImportPath": "golang.org/x/net/websocket",
+			"Rev": "9dfe39835686865bff950a07b394c12a98ddc811"
 		}
 	]
 }

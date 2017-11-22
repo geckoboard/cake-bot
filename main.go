@@ -10,6 +10,7 @@ import (
 	"github.com/geckoboard/cake-bot/log"
 	"github.com/geckoboard/cake-bot/slack"
 	"github.com/joho/godotenv"
+	slackapi "github.com/nlopes/slack"
 )
 
 var (
@@ -24,19 +25,18 @@ func main() {
 	var (
 		httpPort   = mustGetenv("PORT")
 		slackToken = mustGetenv("SLACK_TOKEN")
-		slackHook  = mustGetenv("SLACK_HOOK")
 	)
 
-	client := slack.New(slackToken)
+	slackClient := slack.New(slackToken)
+	slack.Users.Load(slackClient)
 
-	slack.Users.Load(client)
 	go func() {
 		for _ = range time.Tick(5 * time.Minute) {
-			slack.Users.Load(client)
+			slack.Users.Load(slackClient)
 		}
 	}()
 
-	notifier := NewSlackNotifier(slackHook)
+	notifier := NewSlackNotifier(slackapi.New(slackToken))
 	httpServer := http.Server{
 		Addr:    ":" + httpPort,
 		Handler: bugsnag.Handler(NewServer(notifier)),

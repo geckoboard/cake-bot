@@ -6,10 +6,6 @@
     "SLACK_TOKEN": {
       "description": "Access token for a Slack user that can post messages",
       "required": true
-    },
-    "SLACK_HOOK": {
-      "description": "The URL of an 'incoming webhook' in Slack.",
-      "required": true
     }
   },
   "addons": [
