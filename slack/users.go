@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"log"
 	"strings"
 	"sync"
 )
@@ -36,6 +37,7 @@ func (c *users) Load(api *Client) error {
 
 			profile, err := api.GetUserProfile(u.ID)
 			if err != nil {
+				log.Println(err)
 				return
 			}
 

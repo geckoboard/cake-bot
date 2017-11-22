@@ -28,11 +28,11 @@ func main() {
 	)
 
 	slackClient := slack.New(slackToken)
-	slack.Users.Load(slackClient)
+	refreshSlackUsers(slackClient)
 
 	go func() {
 		for _ = range time.Tick(5 * time.Minute) {
-			slack.Users.Load(slackClient)
+			refreshSlackUsers(slackClient)
 		}
 	}()
 
@@ -44,6 +44,12 @@ func main() {
 
 	logger.Info("msg", fmt.Sprintf("Listening on port %s", httpPort))
 	httpServer.ListenAndServe()
+}
+
+func refreshSlackUsers(slackClient *slack.Client) {
+	if err := slack.Users.Load(slackClient); err != nil {
+		logger.Error("msg", "couldn't load Slack users", "err", err)
+	}
 }
 
 func mustGetenv(key string) string {
