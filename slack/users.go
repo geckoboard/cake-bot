@@ -5,10 +5,12 @@ import (
 	"sync"
 )
 
-var Users = &users{userMap: make(map[string][]User)}
+var Users = &users{
+	userMap: make(map[string][]*User),
+}
 
 type users struct {
-	userMap map[string][]User
+	userMap map[string][]*User
 	mu      sync.RWMutex
 }
 
@@ -40,9 +42,9 @@ func (c *users) Load(api *Client) error {
 			if name := findGithubUsernameFromCustomFieldID(githubFieldID, profile); name != "" {
 				c.mu.Lock()
 				if c.userMap[name] == nil {
-					c.userMap[name] = []User{}
+					c.userMap[name] = []*User{}
 				}
-				c.userMap[name] = append(c.userMap[name], u)
+				c.userMap[name] = append(c.userMap[name], &u)
 				c.mu.Unlock()
 			}
 		}(u)
@@ -53,7 +55,7 @@ func (c *users) Load(api *Client) error {
 	return nil
 }
 
-func (c *users) FindByGithubUsername(name string) []User {
+func (c *users) FindByGithubUsername(name string) []*User {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
