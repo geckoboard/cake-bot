@@ -91,7 +91,11 @@ func (n *SlackNotifier) notifyUser(c context.Context, userID, text string) error
 func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) error {
 	l := ctx.Logger(c).With("at", "slack.ping-user")
 
-	_, _, err := n.client.PostMessage(channel, text, slackapi.NewPostMessageParameters())
+	params := slackapi.NewPostMessageParameters()
+	params.AsUser = true
+	params.EscapeText = false
+
+	_, _, err := n.client.PostMessage(channel, text, params)
 	if err != nil {
 		l.Error("msg", "unable to post message", "err", err)
 		return err
