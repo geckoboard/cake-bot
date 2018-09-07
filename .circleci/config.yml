@@ -1,0 +1,9 @@
+version: 2
+jobs:
+  build:
+    working_directory: /go/src/github.com/geckoboard/cake-bot
+    docker:
+      - image: circleci/golang:1.9
+    steps:
+      - checkout
+      - run: make test-ci
