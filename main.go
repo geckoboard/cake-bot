@@ -24,6 +24,7 @@ func main() {
 
 	var (
 		httpPort              = mustGetenv("PORT")
+		githubSecret          = mustGetenv("GITHUB_SECRET")
 		slackToken            = mustGetenv("SLACK_TOKEN")
 		slackUserProfileToken = mustGetenv("SLACK_USER_PROFILE_TOKEN") // FML
 	)
@@ -40,7 +41,7 @@ func main() {
 	notifier := NewSlackNotifier(slackapi.New(slackToken))
 	httpServer := http.Server{
 		Addr:    ":" + httpPort,
-		Handler: bugsnag.Handler(NewServer(notifier)),
+		Handler: bugsnag.Handler(NewServer(notifier, githubSecret)),
 	}
 
 	logger.Info("msg", fmt.Sprintf("Listening on port %s", httpPort))
