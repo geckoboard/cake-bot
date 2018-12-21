@@ -2,14 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
-	"errors"
-	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
@@ -18,10 +12,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func NewServer(notifier Notifier, secret string) http.Handler {
+func NewServer(notifier Notifier, validator WebhookValidator) http.Handler {
 	s := &Server{
-		Notifier: notifier,
-		secret:   secret,
+		Notifier:         notifier,
+		WebhookValidator: validator,
 	}
 
 	r := httprouter.New()
@@ -31,38 +25,12 @@ func NewServer(notifier Notifier, secret string) http.Handler {
 }
 
 type Server struct {
-	Notifier Notifier
-	secret   string
+	Notifier         Notifier
+	WebhookValidator WebhookValidator
 }
 
 func (s *Server) validateSignature(r *http.Request) error {
-	signature := r.Header.Get("X-Hub-Signature")
-	if signature == "" {
-		return errors.New("No signature header provided")
-	}
-
-	// The value of the header is of the format: sha1=<actualhash>
-	gotHash := strings.SplitN(signature, "=", 2)
-	if gotHash[0] != "sha1" {
-		return errors.New("Invalid signature header provided")
-	}
-	defer r.Body.Close()
-
-	b, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return err
-	}
-
-	hash := hmac.New(sha1.New, []byte(s.secret))
-	if _, err := hash.Write(b); err != nil {
-		return err
-	}
-
-	expectedHash := hex.EncodeToString(hash.Sum(nil))
-	if expectedHash != gotHash[1] {
-		return errors.New("Hashes do not match")
-	}
-	return nil
+	return s.WebhookValidator.ValidateSignature(r)
 }
 
 func (s *Server) root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {

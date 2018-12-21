@@ -36,10 +36,19 @@ func (f *fakeNotifier) ReviewRequested(_ context.Context, webhook *github.PullRe
 	return nil
 }
 
+type fakeWebhookValidator struct {
+	secret string
+}
+
+func (f *fakeWebhookValidator) ValidateSignature(r *http.Request) error {
+	return nil
+}
+
 func TestHandleReviewRequiresChanges(t *testing.T) {
 	outcome := &fakeNotifier{}
+	validator := &fakeWebhookValidator{}
 
-	s := httptest.NewServer(NewServer(outcome))
+	s := httptest.NewServer(NewServer(outcome, validator))
 	defer s.Close()
 	webhookURL := s.URL + "/github"
 
@@ -84,8 +93,9 @@ func TestHandleReviewRequiresChanges(t *testing.T) {
 
 func TestHandleReviewApproved(t *testing.T) {
 	outcome := &fakeNotifier{}
+	validator := &fakeWebhookValidator{}
 
-	s := httptest.NewServer(NewServer(outcome))
+	s := httptest.NewServer(NewServer(outcome, validator))
 	defer s.Close()
 	webhookURL := s.URL + "/github"
 

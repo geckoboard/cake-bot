@@ -39,9 +39,10 @@ func main() {
 	}()
 
 	notifier := NewSlackNotifier(slackapi.New(slackToken))
+	webhookValidator := NewGitHubWebhookValidator(githubSecret)
 	httpServer := http.Server{
 		Addr:    ":" + httpPort,
-		Handler: bugsnag.Handler(NewServer(notifier, githubSecret)),
+		Handler: bugsnag.Handler(NewServer(notifier, webhookValidator)),
 	}
 
 	logger.Info("msg", fmt.Sprintf("Listening on port %s", httpPort))
