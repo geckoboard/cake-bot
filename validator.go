@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
@@ -48,6 +49,9 @@ func (g *GitHubWebhookValidator) ValidateSignature(r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
+	// Enable re-reading of the request body post validation
+	r.Body = ioutil.NopCloser(bytes.NewReader(b))
 
 	hash := hmac.New(sha1.New, []byte(g.secret))
 	if _, err := hash.Write(b); err != nil {
