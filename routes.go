@@ -12,9 +12,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func NewServer(notifier Notifier) http.Handler {
+func NewServer(notifier Notifier, validator WebhookValidator) http.Handler {
 	s := &Server{
-		Notifier: notifier,
+		Notifier:         notifier,
+		WebhookValidator: validator,
 	}
 
 	r := httprouter.New()
@@ -24,7 +25,12 @@ func NewServer(notifier Notifier) http.Handler {
 }
 
 type Server struct {
-	Notifier Notifier
+	Notifier         Notifier
+	WebhookValidator WebhookValidator
+}
+
+func (s *Server) validateSignature(r *http.Request) error {
+	return s.WebhookValidator.ValidateSignature(r)
 }
 
 func (s *Server) root(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
@@ -41,6 +47,12 @@ func (s *Server) githubWebhook(w http.ResponseWriter, r *http.Request, _ httprou
 		"github_delivery_id", r.Header.Get("X-GitHub-Delivery"),
 		"github_event", event,
 	)
+
+	if err := s.validateSignature(r); err != nil {
+		l.Error("at", "invalid_signature", "err", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	switch event {
 	case github.PullRequestEvent:
