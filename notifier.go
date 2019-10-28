@@ -11,9 +11,9 @@ import (
 )
 
 type Notifier interface {
+	ReviewRequested(context.Context, *github.Repository, *github.PullRequest, *github.User) error
 	Approved(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
 	ChangesRequested(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
-	ReviewRequested(context.Context, *github.PullRequestWebhook) error
 }
 
 const (
@@ -57,26 +57,51 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 	return n.tryNotifyUser(c, pr.User, text)
 }
 
-func (n *SlackNotifier) ReviewRequested(c context.Context, webhook *github.PullRequestWebhook) error {
-	url := webhook.PullRequest.HTMLURL
+func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, reviewer *github.User) error {
 	text := fmt.Sprintf(
 		"%s you have been asked by %s to review %s",
-		buildLinkToUser(webhook.RequestedReviewer),
-		buildLinkToUser(webhook.Sender),
-		prLink(url, webhook.Repository, webhook.PullRequest),
+		buildLinkToUser(reviewer), buildLinkToUser(pr.User),
+		prLink(pr.HTMLURL, repo, pr),
 	)
 
 	if err := n.notifyChannel(c, devsChannel, text); err != nil {
 		return err
 	}
 
-	return n.tryNotifyUser(c, webhook.RequestedReviewer, text)
+	if err := n.tryNotifyUser(c, reviewer, text); err != nil {
+		return err
+	}
+
+	presenceText := fmt.Sprintf(
+		"%s seems away and might not able to review %s",
+		buildLinkToUser(reviewer),
+		prLink(pr.HTMLURL, repo, pr),
+	)
+
+	return n.tryNotifyPresence(c, reviewer, pr.User, presenceText)
+}
+
+func (n *SlackNotifier) tryNotifyPresence(c context.Context, ghReviewer *github.User, ghReviewee *github.User, text string) error {
+	reviewer := findSlackUser(ghReviewer)
+	if reviewer == nil {
+		return nil
+	}
+	presence := n.findSlackUserPresence(reviewer)
+
+	if presence == "away" {
+		if reviewee := findSlackUser(ghReviewee); reviewee != nil {
+			return n.notifyUser(c, reviewee.ID, text)
+		}
+	}
+
+	return nil
 }
 
 func (n *SlackNotifier) tryNotifyUser(c context.Context, ghUser *github.User, text string) error {
 	if user := findSlackUser(ghUser); user != nil {
 		return n.notifyUser(c, user.ID, text)
 	}
+
 	return nil
 }
 
@@ -85,6 +110,7 @@ func (n *SlackNotifier) notifyUser(c context.Context, userID, text string) error
 	if err != nil {
 		return err
 	}
+
 	return n.notifyChannel(c, channel, text)
 }
 
@@ -103,6 +129,15 @@ func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) e
 
 	l.Info("msg", "ping successful")
 	return nil
+}
+
+func (n *SlackNotifier) findSlackUserPresence(user *slack.User) string {
+	up, err := n.client.GetUserPresence(user.ID)
+	if err != nil {
+		return ""
+	}
+
+	return up.Presence
 }
 
 func buildLinkToUser(ghUser *github.User) string {

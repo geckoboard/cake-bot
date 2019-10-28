@@ -80,7 +80,7 @@ func (s *Server) handlePullRequestEvent(w http.ResponseWriter, r *http.Request, 
 	switch webhook.Action {
 	case "review_requested":
 		c := ctx.WithLogger(context.Background(), l)
-		s.Notifier.ReviewRequested(c, &webhook)
+		s.Notifier.ReviewRequested(c, webhook.Repository, webhook.PullRequest, webhook.RequestedReviewer)
 		w.WriteHeader(http.StatusOK)
 	default:
 		l.Info("at", "ignore_pull_request_action")
