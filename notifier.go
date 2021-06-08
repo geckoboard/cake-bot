@@ -17,7 +17,7 @@ type Notifier interface {
 }
 
 const (
-	maxTitleLength = 35
+	maxTitleLength = 80
 	devsChannel    = "#devs"
 )
 
