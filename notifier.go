@@ -60,7 +60,7 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, reviewer *github.User) error {
 	text := fmt.Sprintf(
 		"%s you have been asked by %s to review %s",
-		buildLinkToUser(reviewer), buildLinkToUser(pr.User),
+		buildLinkToUser(reviewer), buildUserName(pr.User),
 		prLink(pr.HTMLURL, repo, pr),
 	)
 
@@ -143,6 +143,13 @@ func (n *SlackNotifier) findSlackUserPresence(user *slack.User) string {
 func buildLinkToUser(ghUser *github.User) string {
 	if user := findSlackUser(ghUser); user != nil {
 		return fmt.Sprintf("<@%s>", user.ID)
+	}
+	return ghUser.Login
+}
+
+func buildUserName(ghUser *github.User) interface{} {
+	if user := findSlackUser(ghUser); user != nil {
+		return user.ID
 	}
 	return ghUser.Login
 }
