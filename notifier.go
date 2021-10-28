@@ -149,7 +149,7 @@ func buildLinkToUser(ghUser *github.User) string {
 
 func buildUserName(ghUser *github.User) interface{} {
 	if user := findSlackUser(ghUser); user != nil {
-		return user.ID
+		return user.Name
 	}
 	return ghUser.Login
 }
