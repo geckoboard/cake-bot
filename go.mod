@@ -17,5 +17,5 @@ require (
 	github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515 // indirect
 	github.com/nlopes/slack v0.1.1-0.20170725121730-5cde21b8b96a
 	github.com/stretchr/testify v1.7.0 // indirect
-	golang.org/x/net v0.0.0-20171115151908-9dfe39835686 // indirect
+	golang.org/x/net v0.7.0 // indirect
 )
