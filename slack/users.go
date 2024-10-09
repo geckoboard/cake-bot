@@ -1,20 +1,16 @@
 package slack
 
 import (
-	"log"
 	"strings"
-	"sync"
+	"sync/atomic"
 
 	"github.com/slack-go/slack"
 )
 
-var Users = &users{
-	userMap: make(map[string][]*slack.User),
-}
+var Users = &users{}
 
 type users struct {
-	userMap map[string][]*slack.User
-	mu      sync.RWMutex
+	users atomic.Pointer[map[string]slack.User]
 }
 
 func (c *users) Load(api *Client) error {
@@ -30,42 +26,34 @@ func (c *users) Load(api *Client) error {
 		return err
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(len(users))
+	m := make(map[string]slack.User)
 
 	for _, u := range users {
-		go func(u *slack.User) {
-			defer wg.Done()
+		profile, err := api.GetUserProfile(u.ID)
+		if err != nil {
+			return err
+		}
 
-			profile, err := api.GetUserProfile(u.ID)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			if name := findGitHubUsernameFromCustomFieldID(githubFieldID, profile); name != "" {
-				c.mu.Lock()
-				if c.userMap[name] == nil {
-					c.userMap[name] = []*slack.User{}
-				}
-				c.userMap[name] = append(c.userMap[name], u)
-				c.mu.Unlock()
-			}
-		}(&u)
+		if name := findGitHubUsernameFromCustomFieldID(githubFieldID, profile); name != "" {
+			m[strings.ToLower(name)] = u
+		}
 	}
 
-	wg.Wait()
-
+	c.users.Store(&m)
 	return nil
 }
 
-func (c *users) FindByGitHubUsername(name string) []*slack.User {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	if u, ok := c.userMap[strings.ToLower(name)]; ok {
-		return u
+func (c *users) FindByGitHubUsername(name string) *slack.User {
+	m := c.users.Load()
+	if m == nil {
+		// We haven't loaded all users yet, bail out.
+		return nil
 	}
+
+	if u, ok := (*m)[strings.ToLower(name)]; ok {
+		return &u
+	}
+
 	return nil
 }
 
@@ -82,7 +70,7 @@ func findCustomFieldID(team *slack.TeamProfile) string {
 func findGitHubUsernameFromCustomFieldID(fieldId string, profile *slack.UserProfile) string {
 	for id, field := range profile.Fields.ToMap() {
 		if id == fieldId {
-			return strings.TrimSpace(strings.ToLower(field.Value))
+			return strings.TrimSpace(field.Value)
 		}
 	}
 
