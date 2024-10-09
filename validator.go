@@ -6,7 +6,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -45,13 +45,13 @@ func (g *GitHubWebhookValidator) ValidateSignature(r *http.Request) error {
 	}
 	defer r.Body.Close()
 
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		return err
 	}
 
 	// Enable re-reading of the request body post validation
-	r.Body = ioutil.NopCloser(bytes.NewReader(b))
+	r.Body = io.NopCloser(bytes.NewReader(b))
 
 	hash := hmac.New(sha1.New, []byte(g.secret))
 	if _, err := hash.Write(b); err != nil {
