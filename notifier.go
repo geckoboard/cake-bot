@@ -170,11 +170,7 @@ func buildUserName(ghUser *github.User) interface{} {
 }
 
 func findSlackUser(ghUser *github.User) *slackapi.User {
-	users := slack.Users.FindByGitHubUsername(ghUser.Login)
-	if len(users) > 0 {
-		return users[0]
-	}
-	return nil
+	return slack.Users.FindByGitHubUsername(ghUser.Login)
 }
 
 func prLink(url string, repo *github.Repository, pr *github.PullRequest) string {

@@ -29,9 +29,9 @@ func main() {
 	)
 
 	slackClient := slack.New(slackToken)
-	refreshSlackUsers(slackClient)
 
 	go func() {
+		refreshSlackUsers(slackClient)
 		for range time.Tick(5 * time.Minute) {
 			refreshSlackUsers(slackClient)
 		}
