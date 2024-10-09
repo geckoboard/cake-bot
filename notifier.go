@@ -7,7 +7,7 @@ import (
 	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/geckoboard/cake-bot/github"
 	"github.com/geckoboard/cake-bot/slack"
-	slackapi "github.com/nlopes/slack"
+	slackapi "github.com/slack-go/slack"
 )
 
 type Notifier interface {
@@ -106,12 +106,14 @@ func (n *SlackNotifier) tryNotifyUser(c context.Context, ghUser *github.User, te
 }
 
 func (n *SlackNotifier) notifyUser(c context.Context, userID, text string) error {
-	_, _, channel, err := n.client.OpenIMChannel(userID)
+	channel, _, _, err := n.client.OpenConversation(&slackapi.OpenConversationParameters{
+		Users: []string{userID},
+	})
 	if err != nil {
 		return err
 	}
 
-	return n.notifyChannel(c, channel, text)
+	return n.notifyChannel(c, channel.ID, text)
 }
 
 func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) error {
@@ -121,7 +123,11 @@ func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) e
 	params.AsUser = true
 	params.EscapeText = false
 
-	_, _, err := n.client.PostMessage(channel, text, params)
+	_, _, err := n.client.PostMessage(
+		channel,
+		slackapi.MsgOptionText(text, false),
+		slackapi.MsgOptionPostMessageParameters(params),
+	)
 	if err != nil {
 		l.Error("msg", "unable to post message", "err", err)
 		return err

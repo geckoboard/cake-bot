@@ -10,7 +10,7 @@ import (
 	"github.com/geckoboard/cake-bot/log"
 	"github.com/geckoboard/cake-bot/slack"
 	"github.com/joho/godotenv"
-	slackapi "github.com/nlopes/slack"
+	slackapi "github.com/slack-go/slack"
 )
 
 var (
