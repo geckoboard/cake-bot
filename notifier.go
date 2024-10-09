@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/geckoboard/cake-bot/github"
@@ -137,7 +138,7 @@ func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) e
 	return nil
 }
 
-func (n *SlackNotifier) findSlackUserPresence(user *slack.User) string {
+func (n *SlackNotifier) findSlackUserPresence(user *slackapi.User) string {
 	up, err := n.client.GetUserPresence(user.ID)
 	if err != nil {
 		return ""
@@ -160,7 +161,7 @@ func buildUserName(ghUser *github.User) interface{} {
 	return ghUser.Login
 }
 
-func findSlackUser(ghUser *github.User) *slack.User {
+func findSlackUser(ghUser *github.User) *slackapi.User {
 	users := slack.Users.FindByGitHubUsername(ghUser.Login)
 	if len(users) > 0 {
 		return users[0]
