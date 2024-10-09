@@ -4,14 +4,16 @@ import (
 	"log"
 	"strings"
 	"sync"
+
+	"github.com/slack-go/slack"
 )
 
 var Users = &users{
-	userMap: make(map[string][]*User),
+	userMap: make(map[string][]*slack.User),
 }
 
 type users struct {
-	userMap map[string][]*User
+	userMap map[string][]*slack.User
 	mu      sync.RWMutex
 }
 
@@ -32,7 +34,7 @@ func (c *users) Load(api *Client) error {
 	wg.Add(len(users))
 
 	for _, u := range users {
-		go func(u User) {
+		go func(u *slack.User) {
 			defer wg.Done()
 
 			profile, err := api.GetUserProfile(u.ID)
@@ -44,12 +46,12 @@ func (c *users) Load(api *Client) error {
 			if name := findGitHubUsernameFromCustomFieldID(githubFieldID, profile); name != "" {
 				c.mu.Lock()
 				if c.userMap[name] == nil {
-					c.userMap[name] = []*User{}
+					c.userMap[name] = []*slack.User{}
 				}
-				c.userMap[name] = append(c.userMap[name], &u)
+				c.userMap[name] = append(c.userMap[name], u)
 				c.mu.Unlock()
 			}
-		}(u)
+		}(&u)
 	}
 
 	wg.Wait()
@@ -57,7 +59,7 @@ func (c *users) Load(api *Client) error {
 	return nil
 }
 
-func (c *users) FindByGitHubUsername(name string) []*User {
+func (c *users) FindByGitHubUsername(name string) []*slack.User {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -67,7 +69,7 @@ func (c *users) FindByGitHubUsername(name string) []*User {
 	return nil
 }
 
-func findCustomFieldID(team *TeamProfile) string {
+func findCustomFieldID(team *slack.TeamProfile) string {
 	for _, f := range team.Fields {
 		if strings.Contains(strings.ToLower(f.Label), "github") {
 			return f.ID
@@ -77,8 +79,8 @@ func findCustomFieldID(team *TeamProfile) string {
 	return ""
 }
 
-func findGitHubUsernameFromCustomFieldID(fieldId string, profile *UserProfile) string {
-	for id, field := range profile.Fields {
+func findGitHubUsernameFromCustomFieldID(fieldId string, profile *slack.UserProfile) string {
+	for id, field := range profile.Fields.ToMap() {
 		if id == fieldId {
 			return strings.TrimSpace(strings.ToLower(field.Value))
 		}

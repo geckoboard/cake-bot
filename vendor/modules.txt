@@ -19,6 +19,9 @@ github.com/go-logfmt/logfmt
 # github.com/go-stack/stack v1.5.2
 ## explicit
 github.com/go-stack/stack
+# github.com/gorilla/websocket v1.5.3
+## explicit; go 1.12
+github.com/gorilla/websocket
 # github.com/joho/godotenv v0.0.0-20170328200154-325433c502d4
 ## explicit
 github.com/joho/godotenv
@@ -33,11 +36,21 @@ github.com/kardianos/osext
 # github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515
 ## explicit
 github.com/kr/logfmt
-# github.com/nlopes/slack v0.1.1-0.20170725121730-5cde21b8b96a
+# github.com/nlopes/slack v0.6.0
 ## explicit
 github.com/nlopes/slack
+github.com/nlopes/slack/internal/errorsx
+github.com/nlopes/slack/internal/timex
+github.com/nlopes/slack/slackutilsx
+# github.com/pkg/errors v0.8.0
+## explicit
+github.com/pkg/errors
+# github.com/slack-go/slack v0.14.0
+## explicit; go 1.16
+github.com/slack-go/slack
+github.com/slack-go/slack/internal/backoff
+github.com/slack-go/slack/internal/errorsx
+github.com/slack-go/slack/internal/timex
+github.com/slack-go/slack/slackutilsx
 # github.com/stretchr/testify v1.7.0
-## explicit
-# golang.org/x/net v0.0.0-20171115151908-9dfe39835686
-## explicit
-golang.org/x/net/websocket
+## explicit; go 1.13

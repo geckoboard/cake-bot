@@ -34,8 +34,12 @@ At a minimum you will need to specify these environment variables:
 
 - `PORT` The HTTP port on which to listen for webhooks.
 - `SLACK_TOKEN` An API key that can scan your slack's team directory.
-- `SLACK_HOOK` The URL of an incoming slack hook that can post messages
-  to a room in your slack team.
+- `GITHUB_SECRET` A secret key for validating GitHub webhooks. You can create this using `uuidgen` and configure it in Github's webhook settings.
+
+The `SLACK_TOKEN` must have the following scopes:
+
+- `users:read`, `users:read.email`, `users.profile:read`
+- `chat:write`
 
 During development you can set these variables in a `.env` file in the
 current working directory. Cake bot will set these as environment
@@ -44,7 +48,7 @@ variables.
 ## Testing
 
 ```console
-$ make test
+make test
 ```
 
 You can also send some example webhooks to the server during development:
@@ -59,5 +63,5 @@ $ cat example-webhooks/pull_request_review_approved.json | curl http://localhost
 ## Running
 
 ```console
-$ make run
+make run
 ```

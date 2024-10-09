@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/geckoboard/cake-bot/github"
 	"github.com/geckoboard/cake-bot/slack"
-	slackapi "github.com/nlopes/slack"
+	slackapi "github.com/slack-go/slack"
 )
 
 type Notifier interface {
@@ -18,7 +19,10 @@ type Notifier interface {
 
 const (
 	maxTitleLength = 80
-	devsChannel    = "#devs"
+)
+
+var (
+	notificationChannel string
 )
 
 type SlackNotifier struct {
@@ -26,6 +30,11 @@ type SlackNotifier struct {
 }
 
 func NewSlackNotifier(client *slackapi.Client) *SlackNotifier {
+	targetChannel, ok := os.LookupEnv("SLACK_NOTIFICATION_CHANNEL")
+	if !ok {
+		notificationChannel = "#devs"
+	}
+	notificationChannel = targetChannel
 	return &SlackNotifier{client}
 }
 
@@ -36,7 +45,7 @@ func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr 
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	if err := n.notifyChannel(c, devsChannel, text); err != nil {
+	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
 		return err
 	}
 
@@ -50,7 +59,7 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	if err := n.notifyChannel(c, devsChannel, text); err != nil {
+	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
 		return err
 	}
 
@@ -64,7 +73,7 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Reposito
 		prLink(pr.HTMLURL, repo, pr),
 	)
 
-	if err := n.notifyChannel(c, devsChannel, text); err != nil {
+	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
 		return err
 	}
 
@@ -106,12 +115,14 @@ func (n *SlackNotifier) tryNotifyUser(c context.Context, ghUser *github.User, te
 }
 
 func (n *SlackNotifier) notifyUser(c context.Context, userID, text string) error {
-	_, _, channel, err := n.client.OpenIMChannel(userID)
+	channel, _, _, err := n.client.OpenConversation(&slackapi.OpenConversationParameters{
+		Users: []string{userID},
+	})
 	if err != nil {
 		return err
 	}
 
-	return n.notifyChannel(c, channel, text)
+	return n.notifyChannel(c, channel.ID, text)
 }
 
 func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) error {
@@ -121,7 +132,11 @@ func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) e
 	params.AsUser = true
 	params.EscapeText = false
 
-	_, _, err := n.client.PostMessage(channel, text, params)
+	_, _, err := n.client.PostMessage(
+		channel,
+		slackapi.MsgOptionText(text, false),
+		slackapi.MsgOptionPostMessageParameters(params),
+	)
 	if err != nil {
 		l.Error("msg", "unable to post message", "err", err)
 		return err
@@ -131,7 +146,7 @@ func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) e
 	return nil
 }
 
-func (n *SlackNotifier) findSlackUserPresence(user *slack.User) string {
+func (n *SlackNotifier) findSlackUserPresence(user *slackapi.User) string {
 	up, err := n.client.GetUserPresence(user.ID)
 	if err != nil {
 		return ""
@@ -154,7 +169,7 @@ func buildUserName(ghUser *github.User) interface{} {
 	return ghUser.Login
 }
 
-func findSlackUser(ghUser *github.User) *slack.User {
+func findSlackUser(ghUser *github.User) *slackapi.User {
 	users := slack.Users.FindByGitHubUsername(ghUser.Login)
 	if len(users) > 0 {
 		return users[0]

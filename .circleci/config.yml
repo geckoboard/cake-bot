@@ -3,12 +3,13 @@ version: 2.1
 workflows:
   main:
     jobs:
-      - build
+      - test-and-lint
 
 jobs:
-  build:
+  test-and-lint:
     docker:
-      - image: cimg/go:1.16
+      - image: cimg/go:1.21
     steps:
       - checkout
+      - run: make lint
       - run: make test-ci

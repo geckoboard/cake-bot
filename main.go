@@ -10,7 +10,7 @@ import (
 	"github.com/geckoboard/cake-bot/log"
 	"github.com/geckoboard/cake-bot/slack"
 	"github.com/joho/godotenv"
-	slackapi "github.com/nlopes/slack"
+	slackapi "github.com/slack-go/slack"
 )
 
 var (
@@ -23,17 +23,16 @@ func main() {
 	}
 
 	var (
-		httpPort              = mustGetenv("PORT")
-		githubSecret          = mustGetenv("GITHUB_SECRET")
-		slackToken            = mustGetenv("SLACK_TOKEN")
-		slackUserProfileToken = mustGetenv("SLACK_USER_PROFILE_TOKEN") // FML
+		httpPort     = mustGetenv("PORT")
+		githubSecret = mustGetenv("GITHUB_SECRET")
+		slackToken   = mustGetenv("SLACK_TOKEN")
 	)
 
-	slackClient := slack.New(slackUserProfileToken)
+	slackClient := slack.New(slackToken)
 	refreshSlackUsers(slackClient)
 
 	go func() {
-		for _ = range time.Tick(5 * time.Minute) {
+		for range time.Tick(5 * time.Minute) {
 			refreshSlackUsers(slackClient)
 		}
 	}()
@@ -46,7 +45,7 @@ func main() {
 	}
 
 	logger.Info("msg", fmt.Sprintf("Listening on port %s", httpPort))
-	httpServer.ListenAndServe()
+	_ = httpServer.ListenAndServe()
 }
 
 func refreshSlackUsers(slackClient *slack.Client) {
