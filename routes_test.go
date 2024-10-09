@@ -37,9 +37,7 @@ func (f *fakeNotifier) ReviewRequested(_ context.Context, repo *github.Repositor
 	return nil
 }
 
-type fakeWebhookValidator struct {
-	secret string
-}
+type fakeWebhookValidator struct{}
 
 func (f *fakeWebhookValidator) ValidateSignature(r *http.Request) error {
 	return nil
