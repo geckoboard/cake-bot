@@ -19,7 +19,10 @@ type Notifier interface {
 
 const (
 	maxTitleLength = 80
-	devsChannel    = "#devs"
+)
+
+var (
+	notificationChannel string
 )
 
 type SlackNotifier struct {
@@ -27,6 +30,11 @@ type SlackNotifier struct {
 }
 
 func NewSlackNotifier(client *slackapi.Client) *SlackNotifier {
+	targetChannel, ok := os.LookupEnv("SLACK_NOTIFICATION_CHANNEL")
+	if !ok {
+		notificationChannel = "#devs"
+	}
+	notificationChannel = targetChannel
 	return &SlackNotifier{client}
 }
 
@@ -37,7 +45,7 @@ func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr 
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	if err := n.notifyChannel(c, devsChannel, text); err != nil {
+	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
 		return err
 	}
 
@@ -51,7 +59,7 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	if err := n.notifyChannel(c, devsChannel, text); err != nil {
+	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
 		return err
 	}
 
@@ -65,7 +73,7 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Reposito
 		prLink(pr.HTMLURL, repo, pr),
 	)
 
-	if err := n.notifyChannel(c, devsChannel, text); err != nil {
+	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
 		return err
 	}
 
