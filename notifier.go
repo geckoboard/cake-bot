@@ -165,7 +165,7 @@ func (n *SlackNotifier) notifyWithEphemeral(c context.Context, channel, text str
 		fmt.Println(err)
 	}
 
-	n.client.PostEphemeralContext(c, channel, slackUser.ID, slackapi.MsgOptionBlocks(confirmationMsg.BlockSet...))
+	_, err = n.client.PostEphemeralContext(c, channel, slackUser.ID, slackapi.MsgOptionBlocks(confirmationMsg.BlockSet...))
 	if err != nil {
 		fmt.Println(err)
 	}
