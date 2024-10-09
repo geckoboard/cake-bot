@@ -8,7 +8,8 @@ workflows:
 jobs:
   build:
     docker:
-      - image: cimg/go:1.16
+      - image: cimg/go:1.21
     steps:
       - checkout
+      - run: make lint
       - run: make test-ci
