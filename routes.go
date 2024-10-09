@@ -69,7 +69,7 @@ func (s *Server) handlePullRequestEvent(w http.ResponseWriter, r *http.Request, 
 	var webhook github.PullRequestWebhook
 
 	if err := json.NewDecoder(r.Body).Decode(&webhook); err != nil {
-		bugsnag.Notify(err)
+		_ = bugsnag.Notify(err)
 		l.Error("at", "unmarshal_error", "err", err)
 		w.WriteHeader(http.StatusNotImplemented)
 		return
@@ -80,7 +80,7 @@ func (s *Server) handlePullRequestEvent(w http.ResponseWriter, r *http.Request, 
 	switch webhook.Action {
 	case "review_requested":
 		c := ctx.WithLogger(context.Background(), l)
-		s.Notifier.ReviewRequested(c, webhook.Repository, webhook.PullRequest, webhook.RequestedReviewer)
+		_ = s.Notifier.ReviewRequested(c, webhook.Repository, webhook.PullRequest, webhook.RequestedReviewer)
 		w.WriteHeader(http.StatusOK)
 	default:
 		l.Info("at", "ignore_pull_request_action")
@@ -92,7 +92,7 @@ func (s *Server) handlePullRequestReviewEvent(w http.ResponseWriter, r *http.Req
 	var webhook github.PullRequestReviewWebhook
 
 	if err := json.NewDecoder(r.Body).Decode(&webhook); err != nil {
-		bugsnag.Notify(err)
+		_ = bugsnag.Notify(err)
 		l.Error("at", "unmarshal_error", "err", err)
 		w.WriteHeader(http.StatusNotImplemented)
 		return
@@ -115,9 +115,9 @@ func (s *Server) handlePullRequestReviewEvent(w http.ResponseWriter, r *http.Req
 	c := ctx.WithLogger(context.Background(), l)
 
 	if webhook.Review.IsApproved() {
-		s.Notifier.Approved(c, webhook.Repository, webhook.PullRequest, webhook.Review)
+		_ = s.Notifier.Approved(c, webhook.Repository, webhook.PullRequest, webhook.Review)
 	} else if webhook.Review.User.ID != webhook.PullRequest.User.ID {
-		s.Notifier.ChangesRequested(c, webhook.Repository, webhook.PullRequest, webhook.Review)
+		_ = s.Notifier.ChangesRequested(c, webhook.Repository, webhook.PullRequest, webhook.Review)
 	}
 
 	l.Info("at", "pull_request_updated")

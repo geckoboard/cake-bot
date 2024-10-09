@@ -32,7 +32,7 @@ func main() {
 	refreshSlackUsers(slackClient)
 
 	go func() {
-		for _ = range time.Tick(5 * time.Minute) {
+		for range time.Tick(5 * time.Minute) {
 			refreshSlackUsers(slackClient)
 		}
 	}()
@@ -45,7 +45,7 @@ func main() {
 	}
 
 	logger.Info("msg", fmt.Sprintf("Listening on port %s", httpPort))
-	httpServer.ListenAndServe()
+	_ = httpServer.ListenAndServe()
 }
 
 func refreshSlackUsers(slackClient *slack.Client) {
