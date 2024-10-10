@@ -45,11 +45,7 @@ func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr 
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
-		return err
-	}
-
-	return n.tryNotifyUser(c, pr.User, text)
+	return n.notifyChannel(c, notificationChannel, text)
 }
 
 func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
@@ -59,11 +55,7 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
-		return err
-	}
-
-	return n.tryNotifyUser(c, pr.User, text)
+	return n.notifyChannel(c, notificationChannel, text)
 }
 
 func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, reviewer *github.User) error {
@@ -74,10 +66,6 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Reposito
 	)
 
 	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
-		return err
-	}
-
-	if err := n.tryNotifyUser(c, reviewer, text); err != nil {
 		return err
 	}
 
@@ -101,14 +89,6 @@ func (n *SlackNotifier) tryNotifyPresence(c context.Context, ghReviewer *github.
 		if reviewee := findSlackUser(ghReviewee); reviewee != nil {
 			return n.notifyUser(c, reviewee.ID, text)
 		}
-	}
-
-	return nil
-}
-
-func (n *SlackNotifier) tryNotifyUser(c context.Context, ghUser *github.User, text string) error {
-	if user := findSlackUser(ghUser); user != nil {
-		return n.notifyUser(c, user.ID, text)
 	}
 
 	return nil
