@@ -61,16 +61,17 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, reviewer *github.User) error {
 	text := fmt.Sprintf(
 		"%s you have been asked by %s to review %s",
-		buildLinkToUser(reviewer), buildUserName(pr.User),
+		buildLinkToUser(reviewer),
+		buildUserName(pr.User),
 		prLink(pr.HTMLURL, repo, pr),
 	)
 
-	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
+	if err := n.notifyWithEphemeral(c, notificationChannel, text, pr.User); err != nil {
 		return err
 	}
 
 	presenceText := fmt.Sprintf(
-		"%s seems away and might not able to review %s",
+		"%s may be away and might not able to review %s",
 		buildLinkToUser(reviewer),
 		prLink(pr.HTMLURL, repo, pr),
 	)
@@ -103,6 +104,53 @@ func (n *SlackNotifier) notifyUser(c context.Context, userID, text string) error
 	}
 
 	return n.notifyChannel(c, channel.ID, text)
+}
+
+// This function is designed to be called when someone is assigned to review a PR to
+// give them the option saying they are looking at it or to ask the requester reassign it.
+// This is done via a second ephemeral message that's sent right after the main message.
+func (n *SlackNotifier) notifyWithEphemeral(c context.Context, channel, text string, user *github.User) error {
+	slackUser := findSlackUser(user)
+	params := slackapi.NewPostMessageParameters()
+	params.AsUser = true
+	params.EscapeText = false
+
+	var mainMsg, confirmationMsg slackapi.Blocks
+
+	// Main message
+	textBlock := slackapi.NewSectionBlock(
+		slackapi.NewTextBlockObject(slackapi.MarkdownType, text, false, false),
+		nil,
+		nil,
+	)
+
+	// Ephemeral message
+	buttonBlock := slackapi.NewActionBlock(
+		"Let me know",
+		slackapi.NewButtonBlockElement("", "looking", slackapi.NewTextBlockObject("plain_text", "Looking", false, false)),
+		slackapi.NewButtonBlockElement("", "not_now", slackapi.NewTextBlockObject("plain_text", "Sorry, please reassign", false, false)),
+	)
+
+	mainMsg.BlockSet = append(mainMsg.BlockSet, textBlock)
+	confirmationMsg.BlockSet = append(confirmationMsg.BlockSet, buttonBlock)
+
+	// Send the main message requesting PR review
+	_, _, err := n.client.PostMessageContext(
+		c,
+		channel,
+		slackapi.MsgOptionBlocks(mainMsg.BlockSet...),
+		slackapi.MsgOptionPostMessageParameters(params),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	_, err = n.client.PostEphemeralContext(c, channel, slackUser.ID, slackapi.MsgOptionBlocks(confirmationMsg.BlockSet...))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return nil
 }
 
 func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) error {
