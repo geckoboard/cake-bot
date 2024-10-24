@@ -45,7 +45,8 @@ func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr 
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	return n.notifyChannel(c, notificationChannel, text)
+	messageBlocks := []slackapi.Block{buildTextMessageBlock(text)}
+	return n.notifyChannel(c, notificationChannel, messageBlocks)
 }
 
 func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
@@ -55,7 +56,8 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	return n.notifyChannel(c, notificationChannel, text)
+	messageBlocks := []slackapi.Block{buildTextMessageBlock(text)}
+	return n.notifyChannel(c, notificationChannel, messageBlocks)
 }
 
 func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, reviewer *github.User) error {
@@ -65,7 +67,9 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Reposito
 		prLink(pr.HTMLURL, repo, pr),
 	)
 
-	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
+	messageBlocks := []slackapi.Block{buildTextMessageBlock(text)}
+	err := n.notifyChannel(c, notificationChannel, messageBlocks)
+	if err != nil {
 		return err
 	}
 
@@ -102,28 +106,24 @@ func (n *SlackNotifier) notifyUser(c context.Context, userID, text string) error
 		return err
 	}
 
-	return n.notifyChannel(c, channel.ID, text)
+	messageBlocks := []slackapi.Block{buildTextMessageBlock(text)}
+	return n.notifyChannel(c, channel.ID, messageBlocks)
 }
 
-func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) error {
-	l := ctx.Logger(c).With("at", "slack.ping-user")
-
+// notifyChannel sends a message to a channel constructed from blocks
+// Callers should pass the channel ID, not the channel name (e.g. "C1234567890")
+func (n *SlackNotifier) notifyChannel(c context.Context, channel string, blocks []slackapi.Block) error {
 	params := slackapi.NewPostMessageParameters()
 	params.AsUser = true
 	params.EscapeText = false
 
-	_, _, err := n.client.PostMessage(
+	_, _, err := n.client.PostMessageContext(
+		c,
 		channel,
-		slackapi.MsgOptionText(text, false),
+		slackapi.MsgOptionBlocks(blocks...),
 		slackapi.MsgOptionPostMessageParameters(params),
 	)
-	if err != nil {
-		l.Error("msg", "unable to post message", "err", err)
-		return err
-	}
-
-	l.Info("msg", "ping successful")
-	return nil
+	return err
 }
 
 func (n *SlackNotifier) findSlackUserPresence(user *slackapi.User) string {
@@ -159,4 +159,15 @@ func prLink(url string, repo *github.Repository, pr *github.PullRequest) string 
 		title = fmt.Sprintf("%s...", title[0:maxTitleLength])
 	}
 	return fmt.Sprintf("<%s|%s#%d> - %s", url, repo.Name, pr.Number, title)
+}
+
+// buildTextMessageBlock returns a single slackapi.Block text
+// The block supports slack markdown formatting.
+func buildTextMessageBlock(text string) slackapi.Block {
+	textBlock := slackapi.NewSectionBlock(
+		slackapi.NewTextBlockObject(slackapi.MarkdownType, text, false, false),
+		nil,
+		nil,
+	)
+	return textBlock
 }
