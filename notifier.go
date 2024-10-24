@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
-	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/geckoboard/cake-bot/github"
 	"github.com/geckoboard/cake-bot/slack"
 	slackapi "github.com/slack-go/slack"
@@ -15,10 +15,13 @@ type Notifier interface {
 	ReviewRequested(context.Context, *github.Repository, *github.PullRequest, *github.User) error
 	Approved(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
 	ChangesRequested(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
+	RespondToSlackAction(context.Context, *slackapi.InteractionCallback, string) error
 }
 
 const (
-	maxTitleLength = 80
+	maxTitleLength            = 80
+	reviewingRequestStatusMsg = "reviewing"
+	unableToReviewStatusMsg   = "unable"
 )
 
 var (
@@ -90,6 +93,41 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Reposito
 	)
 
 	return n.tryNotifyPresence(c, reviewer, pr.User, presenceText)
+}
+
+// Updates the original Slack message with a `context` block to show the status of the PR
+// See https://api.slack.com/reference/block-kit/blocks#context for clarification
+// The `response` string is the text to display in the context block.
+func (n *SlackNotifier) RespondToSlackAction(c context.Context, payload *slackapi.InteractionCallback, response string) error {
+	// We need to read the original message blocks and construct a new message
+	// otherwise `update` will overwrite everything, which we don't want.
+	msg := payload.Message
+
+	// The new block to add to the message
+	contextBlock := slackapi.NewContextBlock(
+		"",
+		slackapi.NewTextBlockObject(slackapi.MarkdownType, response, false, false),
+	)
+
+	var newBlocks []slackapi.Block
+
+	for _, block := range msg.Blocks.BlockSet {
+		// Drop the buttons, we're done with them now.
+		if block.BlockType() == "actions" {
+			continue
+		}
+		newBlocks = append(newBlocks, block)
+	}
+	newBlocks = append(newBlocks, contextBlock)
+
+	msg.Blocks.BlockSet = newBlocks
+
+	_, _, _, err := n.client.UpdateMessageContext(c,
+		payload.Channel.ID,
+		payload.Message.Timestamp,
+		slackapi.MsgOptionBlocks(msg.Blocks.BlockSet...),
+	)
+	return err
 }
 
 func (n *SlackNotifier) tryNotifyPresence(c context.Context, ghReviewer *github.User, ghReviewee *github.User, text string) error {
