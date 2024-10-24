@@ -92,14 +92,15 @@ func (n *SlackNotifier) tryNotifyPresence(c context.Context, ghReviewer *github.
 	// presence may be one of 'active', 'away' or a custom status text
 	if presence != "active" {
 		if reviewee := findSlackUser(ghReviewee); reviewee != nil {
-			return n.notifyUser(c, reviewee.ID, text)
+			return n.notifyUserWithDM(c, reviewee.ID, text)
 		}
 	}
 
 	return nil
 }
 
-func (n *SlackNotifier) notifyUser(c context.Context, userID, text string) error {
+// Notifies a user with a direct message.
+func (n *SlackNotifier) notifyUserWithDM(c context.Context, userID, text string) error {
 	channel, _, _, err := n.client.OpenConversation(&slackapi.OpenConversationParameters{
 		Users: []string{userID},
 	})
