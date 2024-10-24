@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/geckoboard/cake-bot/ctx"
@@ -13,6 +12,8 @@ import (
 	"github.com/geckoboard/cake-bot/log"
 	"github.com/julienschmidt/httprouter"
 	slackapi "github.com/slack-go/slack"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 func NewServer(notifier Notifier, validator WebhookValidator) http.Handler {
@@ -87,7 +88,7 @@ func (s *Server) handleSlackInteractionEvent(w http.ResponseWriter, r *http.Requ
 		err := s.Notifier.RespondToSlackAction(
 			context.Background(),
 			&payload,
-			fmt.Sprintf("%s is looking at the PR\n", strings.ToTitle(payload.User.Name)),
+			fmt.Sprintf("%s is looking at the PR\n", titleCaser(payload.User.Name)),
 		)
 
 		if err != nil {
@@ -98,7 +99,7 @@ func (s *Server) handleSlackInteractionEvent(w http.ResponseWriter, r *http.Requ
 		err := s.Notifier.RespondToSlackAction(
 			context.Background(),
 			&payload,
-			fmt.Sprintf("%s is unable to look at the PR right now, sorry!\n", strings.ToTitle(payload.User.Name)),
+			fmt.Sprintf("%s is unable to look at the PR right now, sorry!\n", titleCaser(payload.User.Name)),
 		)
 
 		if err != nil {
@@ -166,4 +167,9 @@ func (s *Server) handlePullRequestReviewEvent(w http.ResponseWriter, r *http.Req
 
 	l.Info("at", "pull_request_updated")
 	w.WriteHeader(http.StatusOK)
+}
+
+func titleCaser(text string) string {
+	caser := cases.Title(language.English)
+	return caser.String(text)
 }
