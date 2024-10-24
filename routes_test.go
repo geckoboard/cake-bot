@@ -9,6 +9,7 @@ import (
 
 	"github.com/geckoboard/cake-bot/github"
 	"github.com/geckoboard/cake-bot/log"
+	"github.com/slack-go/slack"
 )
 
 type notification struct {
@@ -34,6 +35,10 @@ func (f *fakeNotifier) ChangesRequested(_ context.Context, repo *github.Reposito
 
 func (f *fakeNotifier) ReviewRequested(_ context.Context, repo *github.Repository, pr *github.PullRequest, reviewer *github.User) error {
 	f.notifications = append(f.notifications, notification{"review_requested", repo, pr, reviewer})
+	return nil
+}
+
+func (f *fakeNotifier) RespondToSlackAction(_ context.Context, _ *slack.InteractionCallback, _ string) error {
 	return nil
 }
 

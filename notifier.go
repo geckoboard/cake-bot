@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
-	"github.com/geckoboard/cake-bot/ctx"
 	"github.com/geckoboard/cake-bot/github"
 	"github.com/geckoboard/cake-bot/slack"
 	slackapi "github.com/slack-go/slack"
@@ -15,10 +15,13 @@ type Notifier interface {
 	ReviewRequested(context.Context, *github.Repository, *github.PullRequest, *github.User) error
 	Approved(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
 	ChangesRequested(context.Context, *github.Repository, *github.PullRequest, *github.Review) error
+	RespondToSlackAction(context.Context, *slackapi.InteractionCallback, string) error
 }
 
 const (
-	maxTitleLength = 80
+	maxTitleLength            = 80
+	reviewingRequestStatusMsg = "reviewing"
+	unableToReviewStatusMsg   = "unable"
 )
 
 var (
@@ -45,7 +48,8 @@ func (n *SlackNotifier) Approved(c context.Context, repo *github.Repository, pr 
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	return n.notifyChannel(c, notificationChannel, text)
+	messageBlocks := []slackapi.Block{buildTextMessageBlock(text)}
+	return n.notifyChannel(c, notificationChannel, messageBlocks)
 }
 
 func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, review *github.Review) error {
@@ -55,7 +59,8 @@ func (n *SlackNotifier) ChangesRequested(c context.Context, repo *github.Reposit
 		prLink(review.HTMLURL(), repo, pr),
 	)
 
-	return n.notifyChannel(c, notificationChannel, text)
+	messageBlocks := []slackapi.Block{buildTextMessageBlock(text)}
+	return n.notifyChannel(c, notificationChannel, messageBlocks)
 }
 
 func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Repository, pr *github.PullRequest, reviewer *github.User) error {
@@ -65,12 +70,24 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Reposito
 		prLink(pr.HTMLURL, repo, pr),
 	)
 
-	if err := n.notifyChannel(c, notificationChannel, text); err != nil {
+	messageBlocks := []slackapi.Block{buildTextMessageBlock(text)}
+
+	// When a review is first requested, show some buttons for the reviewer to respond
+	buttonBlock := slackapi.NewActionBlock(
+		"reviewer_response",
+		slackapi.NewButtonBlockElement("", reviewingRequestStatusMsg, slackapi.NewTextBlockObject("plain_text", ":eyes: Looking", false, false)),
+		slackapi.NewButtonBlockElement("", unableToReviewStatusMsg, slackapi.NewTextBlockObject("plain_text", ":pray: Please reassign", false, false)),
+	)
+
+	messageBlocks = append(messageBlocks, buttonBlock)
+
+	err := n.notifyChannel(c, notificationChannel, messageBlocks)
+	if err != nil {
 		return err
 	}
 
 	presenceText := fmt.Sprintf(
-		"%s seems away and might not able to review %s",
+		"%s may be busy and unable to review %s",
 		buildLinkToUser(reviewer),
 		prLink(pr.HTMLURL, repo, pr),
 	)
@@ -78,23 +95,60 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Reposito
 	return n.tryNotifyPresence(c, reviewer, pr.User, presenceText)
 }
 
+// Updates the original Slack message with a `context` block to show the status of the PR
+// See https://api.slack.com/reference/block-kit/blocks#context for clarification
+// The `response` string is the text to display in the context block.
+func (n *SlackNotifier) RespondToSlackAction(c context.Context, payload *slackapi.InteractionCallback, response string) error {
+	// We need to read the original message blocks and construct a new message
+	// otherwise `update` will overwrite everything, which we don't want.
+	msg := payload.Message
+
+	// The new block to add to the message
+	contextBlock := slackapi.NewContextBlock(
+		"",
+		slackapi.NewTextBlockObject(slackapi.MarkdownType, response, false, false),
+	)
+
+	var newBlocks []slackapi.Block
+
+	for _, block := range msg.Blocks.BlockSet {
+		// Drop the buttons, we're done with them now.
+		if block.BlockType() == "actions" {
+			continue
+		}
+		newBlocks = append(newBlocks, block)
+	}
+	newBlocks = append(newBlocks, contextBlock)
+
+	msg.Blocks.BlockSet = newBlocks
+
+	_, _, _, err := n.client.UpdateMessageContext(c,
+		payload.Channel.ID,
+		payload.Message.Timestamp,
+		slackapi.MsgOptionBlocks(msg.Blocks.BlockSet...),
+	)
+	return err
+}
+
 func (n *SlackNotifier) tryNotifyPresence(c context.Context, ghReviewer *github.User, ghReviewee *github.User, text string) error {
 	reviewer := findSlackUser(ghReviewer)
 	if reviewer == nil {
 		return nil
 	}
-	presence := n.findSlackUserPresence(reviewer)
 
-	if presence == "away" {
+	presence := n.findSlackUserStatus(reviewer)
+	// presence may be one of 'active', 'away' or a custom status text
+	if presence != "active" {
 		if reviewee := findSlackUser(ghReviewee); reviewee != nil {
-			return n.notifyUser(c, reviewee.ID, text)
+			return n.notifyUserWithDM(c, reviewee.ID, text)
 		}
 	}
 
 	return nil
 }
 
-func (n *SlackNotifier) notifyUser(c context.Context, userID, text string) error {
+// Notifies a user with a direct message.
+func (n *SlackNotifier) notifyUserWithDM(c context.Context, userID, text string) error {
 	channel, _, _, err := n.client.OpenConversation(&slackapi.OpenConversationParameters{
 		Users: []string{userID},
 	})
@@ -102,37 +156,50 @@ func (n *SlackNotifier) notifyUser(c context.Context, userID, text string) error
 		return err
 	}
 
-	return n.notifyChannel(c, channel.ID, text)
+	messageBlocks := []slackapi.Block{buildTextMessageBlock(text)}
+	return n.notifyChannel(c, channel.ID, messageBlocks)
 }
 
-func (n *SlackNotifier) notifyChannel(c context.Context, channel, text string) error {
-	l := ctx.Logger(c).With("at", "slack.ping-user")
-
+// notifyChannel sends a message to a channel constructed from blocks
+// Callers should pass the channel ID, not the channel name (e.g. "C1234567890")
+func (n *SlackNotifier) notifyChannel(c context.Context, channel string, blocks []slackapi.Block) error {
 	params := slackapi.NewPostMessageParameters()
 	params.AsUser = true
 	params.EscapeText = false
 
-	_, _, err := n.client.PostMessage(
+	_, _, err := n.client.PostMessageContext(
+		c,
 		channel,
-		slackapi.MsgOptionText(text, false),
+		slackapi.MsgOptionBlocks(blocks...),
 		slackapi.MsgOptionPostMessageParameters(params),
 	)
-	if err != nil {
-		l.Error("msg", "unable to post message", "err", err)
-		return err
-	}
-
-	l.Info("msg", "ping successful")
-	return nil
+	return err
 }
 
-func (n *SlackNotifier) findSlackUserPresence(user *slackapi.User) string {
-	up, err := n.client.GetUserPresence(user.ID)
+// findSlackUserStatus returns the status of a Slack user.
+// The status can be one of 'active', 'away' or a custom status text.
+func (n *SlackNotifier) findSlackUserStatus(user *slackapi.User) string {
+	u, err := n.client.GetUserInfo(user.ID)
 	if err != nil {
 		return ""
 	}
 
-	return up.Presence
+	// Is the user inactive?
+	if u.Presence != "active" {
+		return u.Presence
+	}
+
+	// Does the user have a custom status set?
+	if u.Profile.StatusText != "" {
+		// avoid returning a long status text
+		words := strings.Fields(u.Profile.StatusText)
+		if len(words) > 3 {
+			return strings.Join(words[:3], " ")
+		}
+		return u.Profile.StatusText // e.g. 'in a meeting', 'pairing'
+	}
+
+	return u.Presence // 'active'
 }
 
 func buildLinkToUser(ghUser *github.User) string {
@@ -159,4 +226,15 @@ func prLink(url string, repo *github.Repository, pr *github.PullRequest) string 
 		title = fmt.Sprintf("%s...", title[0:maxTitleLength])
 	}
 	return fmt.Sprintf("<%s|%s#%d> - %s", url, repo.Name, pr.Number, title)
+}
+
+// buildTextMessageBlock returns a single slackapi.Block text
+// The block supports slack markdown formatting.
+func buildTextMessageBlock(text string) slackapi.Block {
+	textBlock := slackapi.NewSectionBlock(
+		slackapi.NewTextBlockObject(slackapi.MarkdownType, text, false, false),
+		nil,
+		nil,
+	)
+	return textBlock
 }

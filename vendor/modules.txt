@@ -36,15 +36,6 @@ github.com/kardianos/osext
 # github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515
 ## explicit
 github.com/kr/logfmt
-# github.com/nlopes/slack v0.6.0
-## explicit
-github.com/nlopes/slack
-github.com/nlopes/slack/internal/errorsx
-github.com/nlopes/slack/internal/timex
-github.com/nlopes/slack/slackutilsx
-# github.com/pkg/errors v0.8.0
-## explicit
-github.com/pkg/errors
 # github.com/slack-go/slack v0.14.0
 ## explicit; go 1.16
 github.com/slack-go/slack
