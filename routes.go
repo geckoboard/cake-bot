@@ -88,7 +88,7 @@ func (s *Server) handleSlackInteractionEvent(w http.ResponseWriter, r *http.Requ
 		err := s.Notifier.RespondToSlackAction(
 			context.Background(),
 			&payload,
-			fmt.Sprintf("%s is looking at the PR\n", titleCaser(payload.User.Name)),
+			fmt.Sprintf("%s is looking at the PR\n", titleCaser(payload.User.Profile.FirstName)),
 		)
 
 		if err != nil {
@@ -99,7 +99,7 @@ func (s *Server) handleSlackInteractionEvent(w http.ResponseWriter, r *http.Requ
 		err := s.Notifier.RespondToSlackAction(
 			context.Background(),
 			&payload,
-			fmt.Sprintf("%s is unable to look at the PR right now, sorry!\n", titleCaser(payload.User.Name)),
+			fmt.Sprintf("%s is unable to look at the PR right now, sorry!\n", titleCaser(payload.User.Profile.FirstName)),
 		)
 
 		if err != nil {
