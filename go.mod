@@ -8,7 +8,6 @@ require (
 	github.com/joho/godotenv v0.0.0-20170328200154-325433c502d4
 	github.com/julienschmidt/httprouter v1.1.1-0.20170104185816-8a45e95fc75c
 	github.com/slack-go/slack v0.14.0
-	golang.org/x/text v0.19.0
 )
 
 require (
