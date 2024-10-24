@@ -84,7 +84,7 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Reposito
 	}
 
 	presenceText := fmt.Sprintf(
-		"%s seems away and might not able to review %s",
+		"%s may be busy and unable to review %s",
 		buildLinkToUser(reviewer),
 		prLink(pr.HTMLURL, repo, pr),
 	)
