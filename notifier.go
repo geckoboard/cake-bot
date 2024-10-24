@@ -87,9 +87,10 @@ func (n *SlackNotifier) tryNotifyPresence(c context.Context, ghReviewer *github.
 	if reviewer == nil {
 		return nil
 	}
-	presence := n.findSlackUserPresence(reviewer)
 
-	if presence == "away" {
+	presence := n.findSlackUserStatus(reviewer)
+	// presence may be one of 'active', 'away' or a custom status text
+	if presence != "active" {
 		if reviewee := findSlackUser(ghReviewee); reviewee != nil {
 			return n.notifyUser(c, reviewee.ID, text)
 		}
@@ -126,13 +127,30 @@ func (n *SlackNotifier) notifyChannel(c context.Context, channel string, blocks 
 	return err
 }
 
-func (n *SlackNotifier) findSlackUserPresence(user *slackapi.User) string {
-	up, err := n.client.GetUserPresence(user.ID)
+// findSlackUserStatus returns the status of a Slack user.
+// The status can be one of 'active', 'away' or a custom status text.
+func (n *SlackNotifier) findSlackUserStatus(user *slackapi.User) string {
+	u, err := n.client.GetUserInfo(user.ID)
 	if err != nil {
 		return ""
 	}
 
-	return up.Presence
+	// Is the user inactive?
+	if u.Presence != "active" {
+		return u.Presence
+	}
+
+	// Does the user have a custom status set?
+	if u.Profile.StatusText != "" {
+		// avoid returning a long status text
+		words := strings.Fields(u.Profile.StatusText)
+		if len(words) > 3 {
+			return strings.Join(words[:3], " ")
+		}
+		return u.Profile.StatusText // e.g. 'in a meeting', 'pairing'
+	}
+
+	return u.Presence // 'active'
 }
 
 func buildLinkToUser(ghUser *github.User) string {
