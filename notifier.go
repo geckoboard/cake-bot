@@ -68,6 +68,16 @@ func (n *SlackNotifier) ReviewRequested(c context.Context, repo *github.Reposito
 	)
 
 	messageBlocks := []slackapi.Block{buildTextMessageBlock(text)}
+
+	// When a review is first requested, show some buttons for the reviewer to respond
+	buttonBlock := slackapi.NewActionBlock(
+		"reviewer_response",
+		slackapi.NewButtonBlockElement("", reviewingRequestStatusMsg, slackapi.NewTextBlockObject("plain_text", ":eyes: Looking", false, false)),
+		slackapi.NewButtonBlockElement("", unableToReviewStatusMsg, slackapi.NewTextBlockObject("plain_text", ":pray: Please reassign", false, false)),
+	)
+
+	messageBlocks = append(messageBlocks, buttonBlock)
+
 	err := n.notifyChannel(c, notificationChannel, messageBlocks)
 	if err != nil {
 		return err
